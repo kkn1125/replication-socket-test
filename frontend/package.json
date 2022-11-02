@@ -1,0 +1,21 @@
+{
+  "name": "frontend",
+  "module": "index.js",
+  "type": "module",
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "version": "1.0.0",
+  "main": "index.js",
+  "description": "To install dependencies:",
+  "scripts": {
+    "dev": "vite --config vite.config.js"
+  },
+  "dependencies": {
+    "protobufjs": "^7.1.2",
+    "vite": "^3.2.2"
+  },
+  "devDependencies": {
+    "bun-types": "^0.2.0"
+  }
+}
