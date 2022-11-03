@@ -25,6 +25,7 @@ h1 {
   gap: 1rem;
 }
 #wrapper {
+  background-color: #fff;
   position: absolute;
   top: 50%;
   left: 50%;
@@ -33,7 +34,7 @@ h1 {
   -moz-transform: translate(-50%, -50%);
   -ms-transform: translate(-50%, -50%);
   -o-transform: translate(-50%, -50%);
-  padding: 1rem;
+  padding: 3rem;
   border: 1px solid #ccc;
   z-index: 100;
 }
@@ -78,4 +79,11 @@ h1 {
 .btn:hover,
 .btn:focus-within {
   box-shadow: 0 0 0 0.25rem #2f85e955;
+}
+#app {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
 }

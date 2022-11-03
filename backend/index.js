@@ -60,6 +60,7 @@ const app = uWs
           users = users.map((user) =>
             user.id === data.id ? Object.assign(user, data) : user
           );
+          // TODO: 로케이션 데이터 업데이트
           app.publish("broadcast", message, isBinary, true);
         }
       } else {
@@ -100,3 +101,29 @@ const app = uWs
       console.log("Failed to listen to port " + port);
     }
   });
+
+// let limit = 50;
+// loop1: for (let i = 0; i < 10; i += 1) {
+//   loop2: for (let j = 0; j < 3; j += 1) {
+//     if (i === 3) {
+// i = 0;
+// limit--;
+// if (limit === 0) break loop1;
+// continue loop1;
+// }
+// console.log(i, j);
+//   }
+// }
+
+// let i = 2
+
+// loop3: j = i * 2
+
+// console.log(j)
+
+// j = i*2
+
+// 0-0
+// 0-1
+// ...
+// 0-2
