@@ -15,10 +15,10 @@ export default defineConfig(({ command, mode, ssrBuild }) => {
         ignored: ["!**/node_modeuls/**"],
         usePolling: true,
       },
-      hmr: {
-        host: "localhost",
-        port: 3000,
-      },
+      // hmr: {
+      //   host: "localhost",
+      //   port: 3000,
+      // },
     },
     resolve: {
       extensions: [".mjs", ".js", ".ts", ".jsx", ".tsx", ".json", ".css"],

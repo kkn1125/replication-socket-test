@@ -1,15 +1,9 @@
-import Socket, { users } from "./src/Socket";
-import protobuf from "protobufjs";
-
-const { Field, Message } = protobuf;
-Field.d(1, "string", "required")(Message.prototype, "nickname");
-Field.d(2, "float", "required")(Message.prototype, "x");
-Field.d(3, "float", "required")(Message.prototype, "y");
+import Message from "./src/Protobuf";
+import Socket, { user, users } from "./src/Socket";
 
 window.onload = () => {
   let socket = new Socket();
   socket.connect();
-  let user = {};
 
   const SIZE = 15;
   const RUN = 6;
@@ -48,7 +42,12 @@ window.onload = () => {
   form.addEventListener("submit", (e) => {
     e.preventDefault();
     wrapper.remove();
-    Object.assign(user, { nickname: nickname.value });
+    Object.assign(user, {
+      type: "player",
+      nickname: nickname.value,
+      x: innerWidth - SIZE / 2,
+      y: innerHeight - SIZE / 2,
+    });
     socket.send(JSON.stringify(user));
   });
 
@@ -103,7 +102,12 @@ window.onload = () => {
       SPEED = WALK;
     }
     // move values
-    if (socket && (joystick.w || joystick.a || joystick.s || joystick.d)) {
+    if (
+      user &&
+      user.type &&
+      user.type === "player" &&
+      (joystick.w || joystick.a || joystick.s || joystick.d)
+    ) {
       if (joystick.w) {
         user.y -= SPEED;
       }
@@ -119,7 +123,7 @@ window.onload = () => {
 
       socket.send(
         Message.encode(
-          new Message({ nickname: user.nickname, x: user.x, y: user.y })
+          new Message({ id: user.id, x: user.x, y: user.y })
         ).finish()
       );
     }

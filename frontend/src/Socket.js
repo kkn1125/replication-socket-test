@@ -1,6 +1,8 @@
-export const users = [];
-export const sockets = new Map();
+import Message from "./Protobuf";
 
+export let user = {};
+export let users = [];
+export const sockets = new Map();
 class Socket {
   #ws = null;
 
@@ -10,22 +12,34 @@ class Socket {
     this.#ws.onmessage = this.message.bind(this);
     this.#ws.onerror = this.error.bind(this);
     this.#ws.onclose = this.close.bind(this);
+    this.#ws.binaryType = "arraybuffer";
   }
 
   open(e) {
     console.log("connected to socket server");
-    this.#ws.send("hello server");
   }
   message(message) {
     // sockets.set(socket, user);
     const { data } = message;
-    
-    console.log(data);
-    if(data instanceof ArrayBuffer) {
 
+    if (data instanceof ArrayBuffer) {
+      const json = Message.decode(new Uint8Array(data)).toJSON();
+      users = users.map((player) =>
+        player.id === json.id ? Object.assign(player, json) : player
+      );
     } else {
       const json = JSON.parse(data);
-      
+      if (json["message"]) return;
+
+      if (json["type"]) {
+        if (json.type === "viewer") {
+          users.push(json);
+        } else if (json.type === "player") {
+          Object.assign(user, json);
+        }
+      } else if (json instanceof Array) {
+        users = json;
+      }
     }
   }
   error(e) {
