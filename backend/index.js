@@ -20,11 +20,11 @@ const app = uWs
     idleTimeout: 32,
     /* Handlers */
     upgrade: (res, req, context) => {
-      console.log(
-        "An Http connection wants to become WebSocket, URL: " +
-          req.getUrl() +
-          "!"
-      );
+      // console.log(
+      //   "An Http connection wants to become WebSocket, URL: " +
+      //     req.getUrl() +
+      //     "!"
+      // );
 
       /* This immediately calls open handler, you must not use res after this call */
       res.upgrade(
@@ -39,7 +39,7 @@ const app = uWs
       );
     },
     open: (ws) => {
-      console.log("A WebSocket connected!");
+      // console.log("A WebSocket connected!");
       ws.subscribe("broadcast");
       ws.subscribe(String(id));
       sockets.set(ws, {
@@ -48,8 +48,8 @@ const app = uWs
       });
       users.push(sockets.get(ws));
       ws.send(JSON.stringify(sockets.get(ws)));
+      ws.send(JSON.stringify(users));
       ws.publish("broadcast", JSON.stringify(users));
-      console.log(id);
       id++;
     },
     message: (ws, message, isBinary) => {
@@ -88,7 +88,9 @@ const app = uWs
       console.log("WebSocket backpressure: " + ws.getBufferedAmount());
     },
     close: (ws, code, message) => {
-      console.log("WebSocket closed");
+      console.log(sockets.get(ws).id, "out");
+      users = users.filter((user) => user.id !== sockets.get(ws).id);
+      sockets.delete(ws);
     },
   })
   .listen(port, (token) => {
