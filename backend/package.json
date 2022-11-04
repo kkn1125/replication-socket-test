@@ -10,21 +10,21 @@
     "start": "nodemon -L --config nodemon.config.js index.js"
   },
   "dependencies": {
+    "dotenv": "^16.0.3",
+    "mysql": "^2.18.1",
     "protobufjs": "^7.1.2",
     "uWebSockets.js": "github:uNetworking/uWebSockets.js#v20.10.0"
   },
-  "devDependencies": {},
   "nodemonConfig": {
     "verbose": true,
     "ignore": [
       "*.test.js"
     ],
-    "env": {
-      "HOST": "localhost",
-      "PORT": 3000
-    },
     "watch": [
       "./"
     ]
+  },
+  "devDependencies": {
+    "@types/mysql": "^2.15.21"
   }
 }

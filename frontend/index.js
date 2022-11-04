@@ -6,7 +6,7 @@ stone.src = "assets/stone.jpg";
 const man = new Image();
 man.src = "assets/char.png";
 
-const scale = (x, y, unitSize) => Math.min(x, y) * unitSize * (3 / 10);
+const scale = (x, y) => Math.min(x, y);
 
 function createMap(map) {
   const converted = map
@@ -30,21 +30,21 @@ function createMap(map) {
 // window.onload = () => {
 let socket = new Socket();
 const map = `
-  11111111111
-  10011001001
-  11001101001
-  10000000001
-  10101010001
-  11000011001
-  10001100001
-  11110100101
-  10000001101
+  11111111111001001111111111
+  10011001000001100010000100
+  11001101001001001010010100
+  10000000000100000000000000
+  10101010001110100100001000
+  11000011000010100110001100
+  00001100001000001000010000
+  00001100001000001000010000
   `;
 const convertedMap = createMap(map);
 socket.connect();
 
+const MAPSIZE = 10;
 const XSIZE = 15;
-const YSIZE = XSIZE * 3;
+const YSIZE = XSIZE * 1;
 const RUN = 6;
 const WALK = 3;
 let SPEED = 0;
@@ -71,10 +71,28 @@ nickname.type = "text";
 const btn = document.createElement("button");
 btn.classList.add("btn");
 btn.innerText = "Login";
+btn.type = "submit";
 
-form.append(nickname, btn);
+const btn2 = document.createElement("button");
+btn2.classList.add("btn");
+btn2.innerText = "Guest";
+btn2.type = "button";
+
+form.append(nickname, btn, btn2);
 wrapper.append(form);
 app.append(wrapper);
+
+btn2.addEventListener("click", (e) => {
+  e.preventDefault();
+  wrapper.remove();
+  Object.assign(user, {
+    type: "player",
+    nickname: "guest",
+    pox: innerWidth / 2 - XSIZE / 2,
+    poy: innerHeight / 2 - YSIZE / 2,
+  });
+  socket.send(JSON.stringify(user));
+});
 
 form.addEventListener("submit", (e) => {
   e.preventDefault();
@@ -82,19 +100,19 @@ form.addEventListener("submit", (e) => {
   Object.assign(user, {
     type: "player",
     nickname: nickname.value,
-    x: innerWidth / 2 - XSIZE / 2,
-    y: innerHeight / 2 - YSIZE / 2,
+    pox: innerWidth / 2 - XSIZE / 2,
+    poy: innerHeight / 2 - YSIZE / 2,
   });
   socket.send(JSON.stringify(user));
 });
 
-function addUser(ctx, xsize, ysize, { x, y, nickname }) {
-  ctx.fillText(nickname, x, y);
+function addUser(ctx, xsize, ysize, { pox, poy, nickname }) {
+  ctx.fillText(nickname, pox, poy - 25);
   ctx.textAlign = "center";
-  ctx.drawImage(man, x, y, xsize, ysize);
-  // ctx.beginPath();
-  // ctx.arc(x, y, size, 0, 2 * Math.PI);
-  // ctx.fill();
+  // ctx.drawImage(man, x, y, xsize, ysize);
+  ctx.beginPath();
+  ctx.arc(pox, poy, ysize, 0, 2 * Math.PI);
+  ctx.fill();
 }
 
 const ctx = canvas.getContext("2d");
@@ -136,38 +154,48 @@ function handleKeyUp(e) {
 function collision(xsize, ysize) {
   const { mapList, size } = convertedMap;
   const { x, y } = size;
-  const dist = scale(x, y, Math.max(xsize, ysize));
+  const dist = scale(x, y) * MAPSIZE;
 
-  const xin = parseInt((user.x - xsize) / dist);
-  const xout = parseInt((user.x + xsize) / dist);
-  const yin = parseInt((user.y - ysize) / dist);
-  const yout = parseInt((user.y + ysize) / dist);
-  const xx = parseInt(user.x / dist);
-  const yy = parseInt(user.y / dist);
+  const xin = parseInt((user.pox - xsize) / dist);
+  const xout = parseInt((user.pox + xsize) / dist);
+  const yin = parseInt((user.poy - ysize) / dist);
+  const yout = parseInt((user.poy + ysize) / dist);
+  const xx = parseInt(user.pox / dist);
+  const yy = parseInt(user.poy / dist);
+  if (Math.max(yy, yout, yin) > mapList.length - 1) {
+    user.poy -= SPEED;
+  } else if (Math.max(xx, xout, xin) > mapList[0].length - 1) {
+    user.pox -= SPEED;
+  } else if (user.poy - ysize < 0) {
+    user.poy += SPEED;
+  } else if (user.pox - xsize < 0) {
+    user.pox += SPEED;
+  } else {
+    if (xx > xin && mapList[yy][xin]) {
+      // console.log("좌 충돌");
+      user.pox += SPEED;
+    }
+    if (yy > yin && mapList[yin][xx]) {
+      // console.log("상 충돌");
+      user.poy += SPEED;
+    }
 
-  if (xx > xin && mapList[yy][xin]) {
-    console.log("좌 충돌");
-    user.x += SPEED;
-  }
-  if (yy > yin && mapList[yin][xx]) {
-    console.log("상 충돌");
-    user.y += SPEED;
-  }
-  if (yy < yout && mapList[yout][xx]) {
-    console.log("하 충돌");
-    user.y -= SPEED;
-  }
-  if (xx < xout && mapList[yy][xout]) {
-    console.log("우 충돌");
-    user.x -= SPEED;
-  }
+    if (yy < yout && mapList[yout][xx]) {
+      // console.log("하 충돌");
+      user.poy -= SPEED;
+    }
+    if (xx < xout && mapList[yy][xout]) {
+      // console.log("우 충돌");
+      user.pox -= SPEED;
+    }
 
-  console.log("current box", mapList[yy][xx] ? "벽" : "공간");
+    // console.log("current box", mapList?.[yy]?.[xx] ? "벽" : "공간");
+  }
 }
 
 function drawMap(ctx, { mapList, size }, unitSize) {
   const { x, y } = size;
-  const dist = scale(x, y, unitSize);
+  const dist = scale(x, y) * MAPSIZE;
 
   mapList.forEach((row, yl) => {
     row.forEach((box, xl) => {
@@ -202,25 +230,25 @@ function moving() {
     (joystick.w || joystick.a || joystick.s || joystick.d)
   ) {
     if (joystick.w) {
-      collision(XSIZE, YSIZE);
-      user.y -= SPEED;
+      // collision(XSIZE, YSIZE);
+      user.poy -= SPEED;
     }
     if (joystick.a) {
-      collision(XSIZE, YSIZE);
-      user.x -= SPEED;
+      // collision(XSIZE, YSIZE);
+      user.pox -= SPEED;
     }
     if (joystick.s) {
-      collision(XSIZE, YSIZE);
-      user.y += SPEED;
+      // collision(XSIZE, YSIZE);
+      user.poy += SPEED;
     }
     if (joystick.d) {
-      collision(XSIZE, YSIZE);
-      user.x += SPEED;
+      // collision(XSIZE, YSIZE);
+      user.pox += SPEED;
     }
 
     socket.send(
       Message.encode(
-        new Message({ id: user.id, x: user.x, y: user.y })
+        new Message({ id: user.id, pox: user.pox, poy: user.poy })
       ).finish()
     );
   }
@@ -230,7 +258,7 @@ function animation(frame) {
   frame *= 0.001;
 
   render();
-  drawMap(ctx, convertedMap, Math.max(XSIZE, YSIZE));
+  // drawMap(ctx, convertedMap, Math.max(XSIZE, YSIZE));
   moving();
   requestAnimationFrame(animation);
 }

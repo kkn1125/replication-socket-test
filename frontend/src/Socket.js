@@ -23,6 +23,7 @@ class Socket {
     const { data } = message;
 
     if (data instanceof ArrayBuffer) {
+      console.log(data);
       const json = Message.decode(new Uint8Array(data)).toJSON();
       users = users.map((player) =>
         player.id === json.id ? Object.assign(player, json) : player
@@ -33,12 +34,15 @@ class Socket {
 
       if (json["type"]) {
         if (json.type === "viewer") {
+          console.log("viewers", json);
           users.push(json);
         } else if (json.type === "player") {
+          console.log("players", json);
           Object.assign(user, json);
         }
       } else if (json instanceof Array) {
         users = json;
+        console.log('users', users)
       }
     }
   }
@@ -47,6 +51,7 @@ class Socket {
   }
   close(e) {
     console.log(e);
+    this.#ws.send("close");
   }
 
   send(message) {
