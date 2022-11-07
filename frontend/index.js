@@ -1,5 +1,5 @@
 import Message from "./src/Protobuf";
-import Socket, { user, users } from "./src/Socket";
+import Socket, { user, users, sockets } from "./src/Socket";
 
 const stone = new Image();
 stone.src = "assets/stone.jpg";
@@ -28,7 +28,6 @@ function createMap(map) {
 }
 
 // window.onload = () => {
-let socket = new Socket();
 const map = `
   11111111111001001111111111
   10011001000001100010000100
@@ -40,6 +39,7 @@ const map = `
   00001100001000001000010000
   `;
 const convertedMap = createMap(map);
+let socket = new Socket();
 socket.connect();
 
 const MAPSIZE = 10;
@@ -134,8 +134,9 @@ function handleResize() {
 
 function render() {
   ctx.clearRect(0, 0, canvas.width, canvas.height);
-  for (let i = 0; i < users.length; i++) {
-    addUser(ctx, XSIZE, YSIZE, users[i]);
+  // console.log(users)
+  for (let user of users.values()) {
+    addUser(ctx, XSIZE, YSIZE, user);
   }
 }
 
@@ -216,7 +217,7 @@ function drawMap(ctx, { mapList, size }, unitSize) {
   });
 }
 
-function moving() {
+function moving(frame) {
   if (joystick.shift) {
     SPEED = RUN;
   } else {
@@ -259,9 +260,57 @@ function animation(frame) {
 
   render();
   // drawMap(ctx, convertedMap, Math.max(XSIZE, YSIZE));
-  moving();
+  moving(frame);
   requestAnimationFrame(animation);
 }
 
 requestAnimationFrame(animation);
 // };
+
+let START = 1;
+let MAX = 50 + START;
+
+function viewer() {
+  for (let i = START; i < MAX; i++) {
+    let ws = new Socket();
+    ws.connect();
+    sockets.set(i, ws);
+  }
+}
+
+function player() {
+  for (let i = START; i < MAX; i++) {
+    sockets.get(i).send(
+      JSON.stringify({
+        type: "player",
+        nickname: "test" + i,
+        pox: Math.random() * 500,
+        poy: Math.random() * 500,
+      })
+    );
+  }
+}
+
+function locations() {
+  setInterval(() => {
+    for (let i = START; i < MAX; i++) {
+      sockets.get(i).send(
+        Message.encode(
+          new Message({
+            id: i,
+            pox: Math.random() * 500,
+            poy: Math.random() * 500,
+          })
+        ).finish()
+      );
+    }
+  }, 16);
+}
+
+// viewer();
+// setTimeout(() => {
+//   player();
+//   setTimeout(() => {
+//     locations();
+//   }, 10000);
+// }, 10000);

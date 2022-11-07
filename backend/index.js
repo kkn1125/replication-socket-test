@@ -9,7 +9,8 @@ const host = process.env.HOST || "localhost";
 const port = Number(process.env.PORT) || 3000;
 const { Message, Field } = protobuf;
 const sockets = new Map();
-let users = [];
+const Queue = require("./src/model/Queue");
+const locationQueue = new Queue();
 
 Field.d(1, "fixed32", "required")(Message.prototype, "id");
 Field.d(2, "float", "required")(Message.prototype, "pox");
@@ -58,39 +59,30 @@ const app = uWs
       // insert userData
       userService.insert(user, ws, sockets);
       userService.findAll(ws);
-      // users.push(sockets.get(ws));
+      console.log("입장", user);
     },
     message: (ws, message, isBinary) => {
-      console.log(message)
       /* Ok is false if backpressure was built up, wait for drain */
       if (isBinary) {
         const data = Message.decode(new Uint8Array(message));
         if (data.hasOwnProperty("pox")) {
           // TODO: update
           locationService.update(sockets.get(ws), data);
-          // users = users.map((user) =>
-          //   user.id === data.id ? Object.assign(user, data) : user
-          // );
-          console.log("data", data);
-          app.publish("broadcast", message, isBinary, true);
+          // console.log("data", data);
+          // console.log(data);
+          locationQueue.enter(message);
         }
       } else {
         const data = new TextDecoder().decode(message);
         const json = JSON.parse(data);
         if (json.hasOwnProperty("type")) {
           if (json.type === "viewer") {
-            console.log("viewer!");
+            // console.log("viewer!");
           } else if (json.type === "player") {
-            // if (json.nickname === "guest") {
-            //   userService.update(sockets.get(ws), json);
-            //   userService.playerSend(sockets.get(ws), ws);
-            // } else {
-            userService.update(sockets.get(ws), json);
-            userService.playerSend(sockets.get(ws), ws);
-            // }
+            userService.update(sockets.get(ws), json, ws);
           }
         } else {
-          console.log("???", json);
+          // console.log("???", json);
         }
       }
     },
@@ -113,28 +105,8 @@ const app = uWs
     }
   });
 
-// let limit = 50;
-// loop1: for (let i = 0; i < 10; i += 1) {
-//   loop2: for (let j = 0; j < 3; j += 1) {
-//     if (i === 3) {
-// i = 0;
-// limit--;
-// if (limit === 0) break loop1;
-// continue loop1;
-// }
-// console.log(i, j);
-//   }
-// }
-
-// let i = 2
-
-// loop3: j = i * 2
-
-// console.log(j)
-
-// j = i*2
-
-// 0-0
-// 0-1
-// ...
-// 0-2
+setInterval(() => {
+  if (locationQueue.size() > 0) {
+    app.publish("broadcast", locationQueue.get(), true, true);
+  }
+}, 16);
