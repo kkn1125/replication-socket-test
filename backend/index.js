@@ -19,19 +19,11 @@ Field.d(3, "float", "required")(Message.prototype, "poy");
 const app = uWs
   .App({})
   .ws("/*", {
-    /* Options */
-    compression: uWs.SHARED_COMPRESSOR,
     // maxPayloadLength: 16 * 1024 * 1024,
+    compression: uWs.SHARED_COMPRESSOR,
     idleTimeout: 32,
-    /* Handlers */
-    upgrade: (res, req, context) => {
-      // console.log(
-      //   "An Http connection wants to become WebSocket, URL: " +
-      //     req.getUrl() +
-      //     "!"
-      // );
 
-      /* This immediately calls open handler, you must not use res after this call */
+    upgrade: (res, req, context) => {
       res.upgrade(
         {
           url: req.getUrl(),
@@ -59,30 +51,29 @@ const app = uWs
       // insert userData
       userService.insert(user, ws, sockets);
       userService.findAll(ws);
-      console.log("입장", user);
+      // console.log("입장", sockets);
     },
     message: (ws, message, isBinary) => {
-      /* Ok is false if backpressure was built up, wait for drain */
       if (isBinary) {
         const data = Message.decode(new Uint8Array(message));
+        data.id = sockets.get(ws);
+
+        // TODO: 분기문 수정 필요
         if (data.hasOwnProperty("pox")) {
           // TODO: update
           locationService.update(sockets.get(ws), data);
-          // console.log("data", data);
-          // console.log(data);
-          locationQueue.enter(message);
+          // locationQueue.enter(Message.encode(new Message(data)).finish());
+          app.publish("broadcast", Message.encode(new Message(data)).finish(), true, true);
         }
       } else {
         const data = new TextDecoder().decode(message);
         const json = JSON.parse(data);
         if (json.hasOwnProperty("type")) {
           if (json.type === "viewer") {
-            // console.log("viewer!");
           } else if (json.type === "player") {
             userService.update(sockets.get(ws), json, ws);
           }
         } else {
-          // console.log("???", json);
         }
       }
     },
@@ -92,7 +83,6 @@ const app = uWs
     close: (ws, code, message) => {
       console.log(sockets.get(ws), "out");
       userService.deleteOrOfflineById(sockets.get(ws), app);
-      // users = users.filter((user) => user.id !== sockets.get(ws).id);
       sockets.delete(ws);
     },
   })
@@ -105,8 +95,8 @@ const app = uWs
     }
   });
 
-setInterval(() => {
-  if (locationQueue.size() > 0) {
-    app.publish("broadcast", locationQueue.get(), true, true);
-  }
-}, 16);
+// setInterval(() => {
+//   if (locationQueue.size() > 0) {
+//     app.publish("broadcast", locationQueue.get(), true, true);
+//   }
+// }, 16);
