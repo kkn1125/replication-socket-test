@@ -25,6 +25,7 @@ User.findAll = (ws) => {
     `
     )
     .then(([rows, fields]) => {
+      console.log(rows)
       ws.send(JSON.stringify(rows));
       ws.publish("broadcast", JSON.stringify(rows));
     });
@@ -206,6 +207,7 @@ User.deleteOrOfflineById = (id, app) => {
       id
     )
     .then(([found, fields]) => {
+      console.log(found)
       const query =
         found.length === 0
           ? `
