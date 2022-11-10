@@ -24,9 +24,17 @@ const app = uWs
     idleTimeout: 32,
 
     upgrade: (res, req, context) => {
+      const query = req.getQuery();
+      const params = Object.fromEntries(
+        query
+          .split("&")
+          .filter((q) => q)
+          .map((q) => q.split("="))
+      );
+
       res.upgrade(
         {
-          url: req.getUrl(),
+          server: Number(params.server || 1),
         },
         /* Spell these correctly */
         req.getHeader("sec-websocket-key"),
@@ -47,10 +55,12 @@ const app = uWs
       // create user data
       const user = new User({
         type: "viewer",
+        server: ws.server || 1,
       });
+
       // insert userData
-      userService.insert(user, ws, sockets);
-      userService.findAll(ws);
+      userService.insert(user, sockets, ws);
+      userService.findAll(ws, app);
       // console.log("입장", sockets);
     },
     message: (ws, message, isBinary) => {
@@ -61,9 +71,13 @@ const app = uWs
         // TODO: 분기문 수정 필요
         if (data.hasOwnProperty("pox")) {
           // TODO: update
-          locationService.update(sockets.get(ws), data);
-          // locationQueue.enter(Message.encode(new Message(data)).finish());
-          app.publish("broadcast", Message.encode(new Message(data)).finish(), true, true);
+          locationService.update(sockets.get(ws), data, ws);
+          app.publish(
+            String(ws.server),
+            Message.encode(new Message(data)).finish(),
+            true,
+            true
+          );
         }
       } else {
         const data = new TextDecoder().decode(message);
@@ -71,7 +85,7 @@ const app = uWs
         if (json.hasOwnProperty("type")) {
           if (json.type === "viewer") {
           } else if (json.type === "player") {
-            userService.update(sockets.get(ws), json, ws);
+            userService.update(sockets.get(ws), json, ws, app);
           }
         } else {
         }
@@ -82,7 +96,7 @@ const app = uWs
     },
     close: (ws, code, message) => {
       console.log(sockets.get(ws), "out");
-      userService.deleteOrOfflineById(sockets.get(ws), app);
+      userService.deleteOrOfflineById(sockets.get(ws), ws, app);
       sockets.delete(ws);
     },
   })

@@ -41,6 +41,7 @@ class Agreements extends Cert {
 }
 
 class Location extends Agreements {
+  server = 1;
   authority = "";
   type = "";
   state = "";
@@ -52,8 +53,20 @@ class Location extends Agreements {
   roy = 0;
 
   constructor(data) {
-    const { authority, type, state, avatar, space, pox, poy, poz, roy } = data;
+    const {
+      server,
+      authority,
+      type,
+      state,
+      avatar,
+      space,
+      pox,
+      poy,
+      poz,
+      roy,
+    } = data;
     super(data);
+    server && (this.server = server);
     authority && (this.authority = authority);
     type && (this.type = type);
     state && (this.state = state);
@@ -67,6 +80,7 @@ class Location extends Agreements {
 
   getLocation() {
     const location = {
+      server: this.server,
       authority: this.authority,
       type: this.type,
       state: this.state,

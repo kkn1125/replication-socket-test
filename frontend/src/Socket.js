@@ -7,7 +7,16 @@ class Socket {
   #ws = null;
 
   connect() {
-    this.#ws = new WebSocket("ws://localhost:3000/");
+    const params = Object.fromEntries(
+      location.search
+        .slice(1)
+        .split("&")
+        .filter((q) => q)
+        .map((q) => q.split("="))
+    );
+    this.#ws = new WebSocket(
+      `ws://localhost:3000/${params.server ? "?server=" + params.server : ""}`
+    );
     this.#ws.onopen = this.open.bind(this);
     this.#ws.onmessage = this.message.bind(this);
     this.#ws.onerror = this.error.bind(this);
@@ -19,11 +28,8 @@ class Socket {
     console.log("connected to socket server");
   }
   message(message) {
-    // sockets.set(socket, user);
     const { data } = message;
-    // console.log(data);
     if (data instanceof ArrayBuffer) {
-      // console.log(data);
       const json = Message.decode(new Uint8Array(data)).toJSON();
       for (let user of users) {
         if (user.id === json.id) {
@@ -32,28 +38,19 @@ class Socket {
           continue;
         }
       }
-      // users = users.map((player, index) => {
-      //   // 테스트 시 변경 필요
-      //   // console.log(player.id, player.pox, player.poy);
-      //   // console.log(json.id, json.pox, json.poy);
-      //   return;
-      // });
     } else {
       const json = JSON.parse(data);
       if (json["message"]) return;
 
       if (json["type"]) {
         if (json.type === "viewer") {
-          console.log("viewers", json);
+          // console.log("viewers", json);
           users.push(json);
         } else if (json.type === "player") {
-          // console.log("players", json);
           Object.assign(user, json);
         }
       } else if (json instanceof Array) {
-        // console.log(json);
         users = json;
-        // console.log('users', users)
       }
     }
   }
