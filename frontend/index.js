@@ -401,10 +401,10 @@ function moving(frame) {
       // clicked = false; // 마우스 방향 끊고 싶을 때
       targetPoint = null;
     }
-
+    
     socket.send(
       Message.encode(
-        new Message({ id: user.id, pox: user.pox, poy: user.poy })
+        new Message({ id: user.id, server: user.server, pox: user.pox, poy: user.poy })
       ).finish()
     );
   }

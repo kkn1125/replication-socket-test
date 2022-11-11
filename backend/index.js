@@ -1,4 +1,8 @@
+const path = require("path");
 require("./src/utils/tool");
+require("dotenv").config({
+  path: path.join(__dirname, "./.env"),
+});
 
 const uWs = require("uWebSockets.js");
 const protobuf = require("protobufjs");
@@ -9,8 +13,16 @@ const host = process.env.HOST || "localhost";
 const port = Number(process.env.PORT) || 3000;
 const { Message, Field } = protobuf;
 const sockets = new Map();
+const servers = new Map();
 const Queue = require("./src/model/Queue");
 const locationQueue = new Queue();
+let current = 0;
+
+const os = require('os');
+
+const networkInterfaces = os.networkInterfaces();
+
+console.log(networkInterfaces);
 
 Field.d(1, "fixed32", "required")(Message.prototype, "id");
 Field.d(2, "float", "required")(Message.prototype, "pox");
@@ -59,25 +71,28 @@ const app = uWs
       });
 
       // insert userData
-      userService.insert(user, sockets, ws);
+      userService.insert(user, sockets, servers, ws);
       userService.findAll(ws, app);
+
       // console.log("입장", sockets);
     },
     message: (ws, message, isBinary) => {
       if (isBinary) {
         const data = Message.decode(new Uint8Array(message));
         data.id = sockets.get(ws);
+        current = data.id;
 
         // TODO: 분기문 수정 필요
         if (data.hasOwnProperty("pox")) {
           // TODO: update
           locationService.update(sockets.get(ws), data, ws);
-          app.publish(
-            String(ws.server),
-            Message.encode(new Message(data)).finish(),
-            true,
-            true
-          );
+          // app.publish(
+          //   String(ws.server),
+          //   Message.encode(new Message(data)).finish(),
+          //   true,
+          //   true
+          // );
+          locationQueue.enter(message);
         }
       } else {
         const data = new TextDecoder().decode(message);
@@ -100,17 +115,23 @@ const app = uWs
       sockets.delete(ws);
     },
   })
+  .get("/", (res, req) => {
+    res.end("test done!");
+  })
   .listen(port, (token) => {
     if (token) {
       userService.initialize();
       console.log("Listening to port " + port);
+      console.log(process.env.HOST)
     } else {
       console.log("Failed to listen to port " + port);
     }
   });
 
-// setInterval(() => {
-//   if (locationQueue.size() > 0) {
-//     app.publish("broadcast", locationQueue.get(), true, true);
-//   }
-// }, 16);
+setInterval(() => {
+  if (locationQueue.size() > 0) {
+    const ws = servers.get(String(current));
+    // app.publish("broadcast", locationQueue.get(), true, true);
+    app.publish(String(ws.server), locationQueue.get(), true, true);
+  }
+}, 16);

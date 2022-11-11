@@ -1,4 +1,4 @@
-FROM ubuntu
+FROM ubuntu:22.04
 
 # SHELL ["/bin/bash", "--login", "-c"]
 RUN rm /bin/sh && ln -s /bin/bash /bin/sh
@@ -57,4 +57,4 @@ RUN npm i vite nodemon -g
 
 RUN npm i
 
-RUN npm run start
+ENTRYPOINT ["node", "index.js"]

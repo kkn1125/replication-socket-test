@@ -3,6 +3,8 @@ import Message from "./Protobuf";
 export let user = {};
 export let users = [];
 export const sockets = new Map();
+const docker = /* "10.88.0.1" */'';
+const host = docker || "localhost";
 class Socket {
   #ws = null;
 
@@ -15,7 +17,7 @@ class Socket {
         .map((q) => q.split("="))
     );
     this.#ws = new WebSocket(
-      `ws://localhost:3000/${params.server ? "?server=" + params.server : ""}`
+      `ws://${host}:3000/${params.server ? "?server=" + params.server : ""}`
     );
     this.#ws.onopen = this.open.bind(this);
     this.#ws.onmessage = this.message.bind(this);
@@ -30,12 +32,21 @@ class Socket {
   message(message) {
     const { data } = message;
     if (data instanceof ArrayBuffer) {
-      const json = Message.decode(new Uint8Array(data)).toJSON();
-      for (let user of users) {
-        if (user.id === json.id) {
-          Object.assign(user, json);
-        } else {
-          continue;
+      for (let i = 0; i < Math.round(data.byteLength / 15); i++) {
+        try {
+          const json = Message.decode(
+            new Uint8Array(data.slice(i * 15, i * 15 + 15))
+          ).toJSON();
+          // console.log(json)
+          for (let user of users) {
+            if (user.id === json.id) {
+              Object.assign(user, json);
+            } else {
+              continue;
+            }
+          }
+        } catch (e) {
+          console.error(e);
         }
       }
     } else {
@@ -47,6 +58,7 @@ class Socket {
           // console.log("viewers", json);
           users.push(json);
         } else if (json.type === "player") {
+          // console.log(json.id)
           Object.assign(user, json);
         }
       } else if (json instanceof Array) {

@@ -7,8 +7,8 @@ class Queue {
     this.#storage = temp;
   }
   get() {
-    const shift = this.#storage.slice(0, 15);
-    this.#storage = this.#storage.slice(15);
+    const shift = this.#storage;
+    this.#storage = new ArrayBuffer(0);
     return shift;
   }
   size() {
