@@ -28,6 +28,9 @@ User.findAll = (ws, app) => {
     .then(([rows, fields]) => {
       ws.send(JSON.stringify(rows));
       app.publish(String(ws.server), JSON.stringify(rows));
+    })
+    .catch((e) => {
+      console.log("error skip");
     });
 };
 
@@ -47,7 +50,7 @@ User.insert = (data, sockets, servers, ws) => {
   sql
     .promise()
     .query("INSERT INTO user SET ?", base)
-    .then(([rows, fields]) => {
+    .then(async ([rows, fields]) => {
       ws.subscribe("broadcast");
       ws.subscribe(String(rows.insertId));
       ws.subscribe(String(ws.server));
@@ -58,9 +61,12 @@ User.insert = (data, sockets, servers, ws) => {
       cert.user_id = rows.insertId;
       agrees.user_id = rows.insertId;
       servers.set(String(rows.insertId), ws);
-      sql.query("INSERT INTO locations SET ?", [location]);
-      sql.query("INSERT INTO agreements SET ?", [agrees]);
-      sql.query("INSERT INTO certifications SET ?", [cert]);
+      await sql.promise().query("INSERT INTO locations SET ?", [location]);
+      await sql.promise().query("INSERT INTO agreements SET ?", [agrees]);
+      await sql.promise().query("INSERT INTO certifications SET ?", [cert]);
+    })
+    .catch((e) => {
+      console.log("skip error");
     });
 };
 
@@ -77,39 +83,37 @@ User.update = async (id, data, ws, app) => {
   const agrees = user.getAgreements();
   Object.assign(location, { server: ws.server });
 
-  const masterPool = maria.createPool(masterConfig).promise();
-  const masterCon = await masterPool.getConnection();
-  masterCon.beginTransaction();
+  // const masterPool = maria.createPool(masterConfig).promise();
+  // const masterCon = await masterPool.getConnection();
+  // masterCon.beginTransaction();
 
   if (Object.keys(base).length !== 0) {
-    await masterCon.query("UPDATE user SET ? WHERE id=?", [base, id]);
+    await sql.promise().query("UPDATE user SET ? WHERE id=?", [base, id]);
   }
   if (Object.keys(location).length !== 0) {
-    await masterCon.query("UPDATE locations SET ? WHERE user_id=?", [
-      location,
-      id,
-    ]);
+    await sql
+      .promise()
+      .query("UPDATE locations SET ? WHERE user_id=?", [location, id]);
   }
   if (Object.keys(agrees).length !== 0) {
-    await masterCon.query("UPDATE agreements SET ? WHERE user_id=?", [
-      agrees,
-      id,
-    ]);
+    await sql
+      .promise()
+      .query("UPDATE agreements SET ? WHERE user_id=?", [agrees, id]);
   }
   if (Object.keys(cert).length !== 0) {
-    await masterCon.query("UPDATE certifications SET ? WHERE user_id=?", [
-      cert,
-      id,
-    ]);
+    await sql
+      .promise()
+      .query("UPDATE certifications SET ? WHERE user_id=?", [cert, id]);
   }
-  masterCon.commit();
-  masterCon.release();
+  // masterCon.commit();
+  // masterCon.release();
 
-  const slavePool = maria.createPool(slaveConfig).promise();
-  const slaveCon = await slavePool.getConnection();
-  slaveCon.beginTransaction();
+  // const slavePool = maria.createPool(slaveConfig).promise();
+  // const slaveCon = await slavePool.getConnection();
+  // slaveCon.beginTransaction();
 
-  slaveCon
+  slave
+    .promise()
     .query(
       `
         SELECT user.id,
@@ -128,7 +132,8 @@ User.update = async (id, data, ws, app) => {
     )
     .then(([rows, fields]) => {
       ws.send(JSON.stringify(rows[0]));
-      slaveCon
+      slave
+        .promise()
         .query(
           `
             SELECT user.*,
@@ -155,8 +160,8 @@ User.update = async (id, data, ws, app) => {
         });
     });
 
-  slaveCon.commit();
-  slaveCon.release();
+  // slaveCon.commit();
+  // slaveCon.release();
 };
 
 User.deleteOrOfflineById = (id, ws, app) => {

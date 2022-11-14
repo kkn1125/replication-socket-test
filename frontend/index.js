@@ -401,10 +401,15 @@ function moving(frame) {
       // clicked = false; // 마우스 방향 끊고 싶을 때
       targetPoint = null;
     }
-    
+
     socket.send(
       Message.encode(
-        new Message({ id: user.id, server: user.server, pox: user.pox, poy: user.poy })
+        new Message({
+          id: user.id,
+          server: user.server,
+          pox: user.pox,
+          poy: user.poy,
+        })
       ).finish()
     );
   }
@@ -482,12 +487,18 @@ requestAnimationFrame(animation);
 // };
 
 let START = 1;
-let MAX = 100 + START;
+let MAX = 500 + START;
+let SERVER = Object.fromEntries(
+  location.search
+    .split("&")
+    .filter((_) => _)
+    .map((_) => _.split("="))
+);
 
-function viewer() {
+function viewer(server = 1) {
   for (let i = START; i < MAX; i++) {
     let ws = new Socket();
-    ws.connect();
+    ws.connect(server);
     sockets.set(i, ws);
   }
 }
@@ -521,10 +532,14 @@ function locations() {
   }, 16);
 }
 
-viewer();
-setTimeout(() => {
-  player();
+function connections() {
+  viewer(SERVER.server || 1);
   setTimeout(() => {
-    locations();
+    player();
+    setTimeout(() => {
+      locations();
+    }, 10000);
   }, 10000);
-}, 10000);
+}
+
+connections();

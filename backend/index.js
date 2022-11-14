@@ -77,11 +77,9 @@ const app = uWs
         server: ws.server || 1,
       });
 
-      try {
-        // insert userData
-        userService.insert(user, sockets, servers, ws);
-        userService.findAll(ws, app);
-      } catch (e) {}
+      // insert userData
+      userService.insert(user, sockets, servers, ws);
+      userService.findAll(ws, app);
 
       // console.log("입장", sockets);
     },
@@ -146,7 +144,9 @@ const app = uWs
 setInterval(() => {
   if (locationQueue.size() > 0) {
     const ws = servers.get(String(current));
-    // app.publish("broadcast", locationQueue.get(), true, true);
-    app.publish(String(ws.server), locationQueue.get(), true, true);
+    if (ws) {
+      // app.publish("broadcast", locationQueue.get(), true, true);
+      app.publish(String(ws.server), locationQueue.get(), true, true);
+    }
   }
 }, 16);

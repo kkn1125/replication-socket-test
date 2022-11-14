@@ -17,7 +17,9 @@ class Socket {
         .map((q) => q.split("="))
     );
     this.#ws = new WebSocket(
-      `ws://${host}:${port}/${params.server ? "?server=" + params.server : ""}`
+      `ws://${host}:${port}/?server=${
+        server ? server : params.server ? params.server : "1"
+      }`
     );
     this.#ws.onopen = this.open.bind(this);
     this.#ws.onmessage = this.message.bind(this);
