@@ -1,8 +1,17 @@
 const path = require("path");
+const dotenv = require("dotenv");
+const os = require("os");
 require("./src/utils/tool");
-require("dotenv").config({
-  path: path.join(__dirname, "./.env"),
-});
+
+if (process.env.NODE_ENV === "development") {
+  dotenv.config({
+    path: path.join(__dirname, "./.env.development"),
+  });
+} else if (process.env.NODE_ENV === "production") {
+  dotenv.config({
+    path: path.join(__dirname, "./.env.production"),
+  });
+}
 
 const uWs = require("uWebSockets.js");
 const protobuf = require("protobufjs");
@@ -18,11 +27,9 @@ const Queue = require("./src/model/Queue");
 const locationQueue = new Queue();
 let current = 0;
 
-const os = require('os');
-
 const networkInterfaces = os.networkInterfaces();
 
-console.log(networkInterfaces);
+console.log("os", networkInterfaces);
 
 Field.d(1, "fixed32", "required")(Message.prototype, "id");
 Field.d(2, "float", "required")(Message.prototype, "pox");
@@ -70,49 +77,58 @@ const app = uWs
         server: ws.server || 1,
       });
 
-      // insert userData
-      userService.insert(user, sockets, servers, ws);
-      userService.findAll(ws, app);
+      try {
+        // insert userData
+        userService.insert(user, sockets, servers, ws);
+        userService.findAll(ws, app);
+      } catch (e) {}
 
       // console.log("입장", sockets);
     },
     message: (ws, message, isBinary) => {
-      if (isBinary) {
-        const data = Message.decode(new Uint8Array(message));
-        data.id = sockets.get(ws);
-        current = data.id;
+      try {
+        if (isBinary) {
+          const data = Message.decode(new Uint8Array(message));
+          data.id = sockets.get(ws);
+          current = data.id;
 
-        // TODO: 분기문 수정 필요
-        if (data.hasOwnProperty("pox")) {
-          // TODO: update
-          locationService.update(sockets.get(ws), data, ws);
-          // app.publish(
-          //   String(ws.server),
-          //   Message.encode(new Message(data)).finish(),
-          //   true,
-          //   true
-          // );
-          locationQueue.enter(message);
-        }
-      } else {
-        const data = new TextDecoder().decode(message);
-        const json = JSON.parse(data);
-        if (json.hasOwnProperty("type")) {
-          if (json.type === "viewer") {
-          } else if (json.type === "player") {
-            userService.update(sockets.get(ws), json, ws, app);
+          // TODO: 분기문 수정 필요
+          if (data.hasOwnProperty("pox")) {
+            // TODO: update
+            locationService.update(sockets.get(ws), data, ws);
+            // app.publish(
+            //   String(ws.server),
+            //   Message.encode(new Message(data)).finish(),
+            //   true,
+            //   true
+            // );
+            locationQueue.enter(Message.encode(new Message(data)).finish());
           }
         } else {
+          const data = new TextDecoder().decode(message);
+          const json = JSON.parse(data);
+          if (json.hasOwnProperty("type")) {
+            if (json.type === "viewer") {
+            } else if (json.type === "player") {
+              console.log(sockets.get(ws));
+              if (sockets.get(ws) !== undefined || sockets.get(ws) !== null) {
+                userService.update(sockets.get(ws), json, ws, app);
+              }
+            }
+          } else {
+          }
         }
-      }
+      } catch (e) {}
     },
     drain: (ws) => {
       console.log("WebSocket backpressure: " + ws.getBufferedAmount());
     },
     close: (ws, code, message) => {
-      console.log(sockets.get(ws), "out");
-      userService.deleteOrOfflineById(sockets.get(ws), ws, app);
-      sockets.delete(ws);
+      try {
+        console.log(sockets.get(ws), "out");
+        userService.deleteOrOfflineById(sockets.get(ws), ws, app);
+        sockets.delete(ws);
+      } catch (e) {}
     },
   })
   .get("/", (res, req) => {
@@ -122,7 +138,6 @@ const app = uWs
     if (token) {
       userService.initialize();
       console.log("Listening to port " + port);
-      console.log(process.env.HOST)
     } else {
       console.log("Failed to listen to port " + port);
     }

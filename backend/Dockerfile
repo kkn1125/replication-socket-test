@@ -27,4 +27,4 @@ EXPOSE 3000
 
 # CMD ["live-server", "--port=80", "--host=0.0.0.0"]
 
-CMD ["npm", "run", "start"]
+CMD ["npm", "run", "dev"]

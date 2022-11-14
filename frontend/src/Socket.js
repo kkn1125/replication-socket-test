@@ -3,12 +3,12 @@ import Message from "./Protobuf";
 export let user = {};
 export let users = [];
 export const sockets = new Map();
-const docker = "192.168.254.16";
-const host = docker || "localhost";
+const host = import.meta.env.V_REMOTE_HOST ?? "localhost";
+const port = import.meta.env.V_REMOTE_PORT ?? 3000;
 class Socket {
   #ws = null;
 
-  connect() {
+  connect(server) {
     const params = Object.fromEntries(
       location.search
         .slice(1)
@@ -17,7 +17,7 @@ class Socket {
         .map((q) => q.split("="))
     );
     this.#ws = new WebSocket(
-      `ws://${host}:3000/${params.server ? "?server=" + params.server : ""}`
+      `ws://${host}:${port}/${params.server ? "?server=" + params.server : ""}`
     );
     this.#ws.onopen = this.open.bind(this);
     this.#ws.onmessage = this.message.bind(this);
@@ -37,10 +37,10 @@ class Socket {
           const json = Message.decode(
             new Uint8Array(data.slice(i * 15, i * 15 + 15))
           ).toJSON();
-          // console.log(json)
           for (let user of users) {
             if (user.id === json.id) {
               Object.assign(user, json);
+              break;
             } else {
               continue;
             }

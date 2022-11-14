@@ -65,7 +65,7 @@ User.insert = (data, sockets, servers, ws) => {
 };
 
 User.update = async (id, data, ws, app) => {
-  const pipeline = [];
+  if (id === undefined || id === null) return;
   const user = new User(data);
 
   const base = user.getBaseInfo();

@@ -482,7 +482,7 @@ requestAnimationFrame(animation);
 // };
 
 let START = 1;
-let MAX = 50 + START;
+let MAX = 100 + START;
 
 function viewer() {
   for (let i = START; i < MAX; i++) {
@@ -521,10 +521,10 @@ function locations() {
   }, 16);
 }
 
-// viewer();
-// setTimeout(() => {
-//   player();
-//   setTimeout(() => {
-//     locations();
-//   }, 10000);
-// }, 10000);
+viewer();
+setTimeout(() => {
+  player();
+  setTimeout(() => {
+    locations();
+  }, 10000);
+}, 10000);
