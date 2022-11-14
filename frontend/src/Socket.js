@@ -3,7 +3,7 @@ import Message from "./Protobuf";
 export let user = {};
 export let users = [];
 export const sockets = new Map();
-const docker = /* "10.88.0.1" */'';
+const docker = "192.168.254.16";
 const host = docker || "localhost";
 class Socket {
   #ws = null;
