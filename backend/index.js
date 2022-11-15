@@ -24,6 +24,7 @@ const { Message, Field } = protobuf;
 const sockets = new Map();
 const servers = new Map();
 const Queue = require("./src/model/Queue");
+const { latency } = require("./src/utils/tool");
 const locationQueue = new Queue();
 let current = 0;
 
@@ -34,13 +35,38 @@ console.log("os", networkInterfaces);
 Field.d(1, "fixed32", "required")(Message.prototype, "id");
 Field.d(2, "float", "required")(Message.prototype, "pox");
 Field.d(3, "float", "required")(Message.prototype, "poy");
+// Field.d(1, "fixed32", "optional")(Message.prototype, "id");
+// Field.d(2, "string", "optional")(Message.prototype, "nickname");
+// Field.d(3, "string", "optional")(Message.prototype, "email");
+// Field.d(4, "string", "optional")(Message.prototype, "password");
+// Field.d(5, "fixed32", "optional")(Message.prototype, "age");
+// Field.d(6, "fixed32", "optional")(Message.prototype, "birth");
+// Field.d(7, "string", "optional")(Message.prototype, "nation");
+// Field.d(8, "fixed32", "optional")(Message.prototype, "created_at");
+// Field.d(9, "fixed32", "optional")(Message.prototype, "updated_at");
+// Field.d(10, "fixed32", "optional")(Message.prototype, "user_id");
+// Field.d(11, "fixed32", "optional")(Message.prototype, "server");
+// Field.d(12, "string", "optional")(Message.prototype, "authority");
+// Field.d(13, "string", "optional")(Message.prototype, "type");
+// Field.d(14, "string", "optional")(Message.prototype, "state");
+// Field.d(15, "string", "optional")(Message.prototype, "avatar");
+// Field.d(16, "string", "optional")(Message.prototype, "space");
+// Field.d(17, "fixed32", "optional")(Message.prototype, "pox");
+// Field.d(18, "fixed32", "optional")(Message.prototype, "poy");
+// Field.d(19, "fixed32", "optional")(Message.prototype, "poz");
+// Field.d(20, "fixed32", "optional")(Message.prototype, "roy");
+// Field.d(21, "bool", "optional")(Message.prototype, "service");
+// Field.d(22, "bool", "optional")(Message.prototype, "marketing");
+// Field.d(23, "bool", "optional")(Message.prototype, "personal");
+// Field.d(24, "string", "optional")(Message.prototype, "cert_email");
+// Field.d(25, "string", "optional")(Message.prototype, "cert_pass");
 
 const app = uWs
   .App({})
   .ws("/*", {
     // maxPayloadLength: 16 * 1024 * 1024,
     compression: uWs.SHARED_COMPRESSOR,
-    idleTimeout: 32,
+    idleTimeout: 64,
 
     upgrade: (res, req, context) => {
       const query = req.getQuery();
@@ -108,7 +134,7 @@ const app = uWs
           if (json.hasOwnProperty("type")) {
             if (json.type === "viewer") {
             } else if (json.type === "player") {
-              console.log(sockets.get(ws));
+              // console.log(sockets.get(ws));
               if (sockets.get(ws) !== undefined || sockets.get(ws) !== null) {
                 userService.update(sockets.get(ws), json, ws, app);
               }
@@ -144,9 +170,16 @@ const app = uWs
 setInterval(() => {
   if (locationQueue.size() > 0) {
     const ws = servers.get(String(current));
+    console.log(ws.server)
     if (ws) {
       // app.publish("broadcast", locationQueue.get(), true, true);
+      // for (let temp = 0; temp < get.byteLength; temp += 15) {
       app.publish(String(ws.server), locationQueue.get(), true, true);
+      // }
     }
   }
 }, 16);
+
+process.on("SIGINT", function () {
+  console.log("shut down");
+});

@@ -5,10 +5,25 @@ export let users = [];
 export const sockets = new Map();
 const host = import.meta.env.V_REMOTE_HOST ?? "localhost";
 const port = import.meta.env.V_REMOTE_PORT ?? 3000;
+
+// const dev = (function () {
+//   const labels = {};
+//   return {
+//     start(label) {
+//       labels[label] = performance.now();
+//     },
+//     end(label) {
+//       if (labels[label]) {
+//         console.log("%s: %d ms", label, performance.now() - labels[label]);
+//       }
+//     },
+//   };
+// })();
+
 class Socket {
   #ws = null;
 
-  connect(server) {
+  connect() {
     const params = Object.fromEntries(
       location.search
         .slice(1)
@@ -16,9 +31,10 @@ class Socket {
         .filter((q) => q)
         .map((q) => q.split("="))
     );
+
     this.#ws = new WebSocket(
-      `ws://${host}:${port}/?server=${
-        server ? server : params.server ? params.server : "1"
+      `ws://${host}:${Number(port) /* + Number(params.server) - 1 */}/?server=${
+        params.server ? params.server : "1"
       }`
     );
     this.#ws.onopen = this.open.bind(this);
@@ -72,12 +88,23 @@ class Socket {
     console.log(e);
   }
   close(e) {
-    console.log(e);
     this.#ws.send("close");
+    // this.#ws = new WebSocket(
+    //   `ws://${host}:${Number(port) + Number(params.server) - 1}/?server=${
+    //     params.server ? params.server : "1"
+    //   }`
+    // );
+    // this.#ws.onopen = this.open.bind(this);
+    // this.#ws.onmessage = this.message.bind(this);
+    // this.#ws.onerror = this.error.bind(this);
+    // this.#ws.onclose = this.close.bind(this);
+    // this.#ws.binaryType = "arraybuffer";
   }
 
   send(message) {
-    this.#ws.send(message);
+    if (this.#ws.readyState !== 0) {
+      this.#ws.send(message);
+    }
   }
 }
 

@@ -3,8 +3,11 @@ const { sql, slave } = require("../database/mariadb");
 const { masterConfig } = require("../database/mariadbConf");
 const { slaveConfig } = require("../database/slaveConf");
 const { User } = require("../entity/User");
+const { latency } = require("../utils/tool");
 
 User.findAll = (ws, app) => {
+  // latency.start("findall");
+
   slave
     .promise()
     .query(
@@ -28,8 +31,10 @@ User.findAll = (ws, app) => {
     .then(([rows, fields]) => {
       ws.send(JSON.stringify(rows));
       app.publish(String(ws.server), JSON.stringify(rows));
+      // latency.end("findall");
     })
     .catch((e) => {
+      console.log(e);
       console.log("error skip");
     });
 };
@@ -61,6 +66,7 @@ User.insert = (data, sockets, servers, ws) => {
       cert.user_id = rows.insertId;
       agrees.user_id = rows.insertId;
       servers.set(String(rows.insertId), ws);
+      // console.log(location);
       await sql.promise().query("INSERT INTO locations SET ?", [location]);
       await sql.promise().query("INSERT INTO agreements SET ?", [agrees]);
       await sql.promise().query("INSERT INTO certifications SET ?", [cert]);
@@ -112,56 +118,55 @@ User.update = async (id, data, ws, app) => {
   // const slaveCon = await slavePool.getConnection();
   // slaveCon.beginTransaction();
 
-  slave
+  await sql
     .promise()
     .query(
       `
-        SELECT user.id,
-        locations.type,
-        locations.pox,
-        locations.poy,
-        locations.poz,
-        locations.roy
-        FROM user
-        LEFT JOIN locations
-        ON user.id = locations.user_id
-        WHERE user.id = ?
-        ${ws.server !== undefined ? "AND locations.server=" + ws.server : ""}
-        `,
-      id
+    SELECT user.id,
+    locations.type,
+    locations.pox,
+    locations.poy,
+    locations.poz,
+    locations.roy
+    FROM user
+    LEFT JOIN locations
+    ON user.id = locations.user_id
+    WHERE user.id = ?
+    AND locations.server = ?
+    `,
+      [id, ws.server]
     )
-    .then(([rows, fields]) => {
-      ws.send(JSON.stringify(rows[0]));
-      slave
-        .promise()
-        .query(
-          `
-            SELECT user.*,
-            locations.*,
-            certifications.email 'cert_email',
-            certifications.password 'cert_pass',
-            agreements.*
-            FROM user
-            LEFT OUTER JOIN locations
-            ON user.id = locations.user_id
-            LEFT OUTER JOIN certifications
-            ON user.id = certifications.user_id
-            LEFT OUTER JOIN agreements
-            ON user.id = agreements.user_id
-            WHERE locations.type = 'player'
-            ${
-              ws.server !== undefined ? "AND locations.server=" + ws.server : ""
-            }
-            `
-        )
-        .then(([rows, fields]) => {
-          // ws.send(JSON.stringify(rows));
-          app.publish(String(ws.server), JSON.stringify(rows));
-        });
+    .then(([rows1, field1]) => {
+      ws.send(JSON.stringify(rows1[0]));
+    });
+  await sql
+    .promise()
+    .query(
+      `
+        SELECT user.*,
+        locations.*,
+        certifications.email 'cert_email',
+        certifications.password 'cert_pass',
+        agreements.*
+        FROM user
+        LEFT OUTER JOIN locations
+        ON user.id = locations.user_id
+        LEFT OUTER JOIN certifications
+        ON user.id = certifications.user_id
+        LEFT OUTER JOIN agreements
+        ON user.id = agreements.user_id
+        WHERE locations.type = 'player'
+        AND locations.server = ?
+        `,
+      [ws.server]
+    )
+    .then((rows2, fileds2) => {
+      ws.send(JSON.stringify(rows2));
+      app.publish(String(ws.server), JSON.stringify(rows2[0]));
     });
 
-  // slaveCon.commit();
-  // slaveCon.release();
+  // masterCon.commit();
+  // masterCon.release();
 };
 
 User.deleteOrOfflineById = (id, ws, app) => {
@@ -174,7 +179,7 @@ User.deleteOrOfflineById = (id, ws, app) => {
       WHERE id=?
       AND (nickname LIKE 'guest%' OR nickname = '')
       `,
-      id
+      [id]
     )
     .then(([found, fields]) => {
       // console.log(found);
@@ -241,6 +246,14 @@ User.initialize = () => {
     `
   );
   sql.query("UPDATE locations SET type='offline'");
+
+  sql.query("show variables like 'max_connections%'", (err, rows) => {
+    console.log(`set max connection in master`, rows);
+  });
+
+  slave.query("show variables like 'max_connections%'", (err, rows) => {
+    console.log(`set max connection in slave`, rows);
+  });
 };
 
 module.exports = userService = User;

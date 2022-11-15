@@ -486,60 +486,60 @@ function animation(frame) {
 requestAnimationFrame(animation);
 // };
 
-let START = 1;
-let MAX = 500 + START;
-let SERVER = Object.fromEntries(
-  location.search
-    .split("&")
-    .filter((_) => _)
-    .map((_) => _.split("="))
-);
+// let START = 1;
+// let MAX = 200 + START;
 
-function viewer(server = 1) {
-  for (let i = START; i < MAX; i++) {
-    let ws = new Socket();
-    ws.connect(server);
-    sockets.set(i, ws);
-  }
-}
+// function viewer() {
+//   for (let i = START; i < MAX; i++) {
+//     let ws = new Socket();
+//     ws.connect();
+//     sockets.set(i, ws);
+//   }
+//   console.log(`인원 ${sockets.size}명`);
+// }
 
-function player() {
-  for (let i = START; i < MAX; i++) {
-    sockets.get(i).send(
-      JSON.stringify({
-        type: "player",
-        nickname: "test" + i,
-        pox: Math.random() * 500,
-        poy: Math.random() * 500,
-      })
-    );
-  }
-}
+// function player() {
+//   for (let i = START; i < MAX; i++) {
+//     sockets.get(i).send(
+//       JSON.stringify({
+//         type: "player",
+//         nickname: "guest",
+//         pox: Math.random() * 500,
+//         poy: Math.random() * 500,
+//       })
+//     );
+//   }
+//   const count = Array.from(sockets.values()).reduce(
+//     (acc, cur) => (acc += cur.readyState === 0 ? 0 : 1),
+//     0
+//   );
+//   console.log(count);
+// }
 
-function locations() {
-  setInterval(() => {
-    for (let i = START; i < MAX; i++) {
-      sockets.get(i).send(
-        Message.encode(
-          new Message({
-            id: i,
-            pox: Math.random() * 500,
-            poy: Math.random() * 500,
-          })
-        ).finish()
-      );
-    }
-  }, 16);
-}
+// function locations() {
+//   setInterval(() => {
+//     for (let i = START; i < MAX; i++) {
+//       sockets.get(i).send(
+//         Message.encode(
+//           new Message({
+//             id: i,
+//             pox: Math.random() * 500,
+//             poy: Math.random() * 500,
+//           })
+//         ).finish()
+//       );
+//     }
+//   }, 16);
+// }
 
-function connections() {
-  viewer(SERVER.server || 1);
-  setTimeout(() => {
-    player();
-    setTimeout(() => {
-      locations();
-    }, 10000);
-  }, 10000);
-}
+// function connections() {
+//   viewer();
+//   setTimeout(() => {
+//     player();
+//     setTimeout(() => {
+//       locations();
+//     }, 10000);
+//   }, 10000);
+// }
 
-connections();
+// connections();

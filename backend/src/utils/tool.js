@@ -25,3 +25,19 @@ Date.prototype.format = function (format) {
     }
   });
 };
+
+const dev = (function () {
+  const labels = {};
+  return {
+    start(label) {
+      labels[label] = performance.now();
+    },
+    end(label) {
+      if (labels[label]) {
+        console.log("%s: %d ms", label, performance.now() - labels[label]);
+      }
+    },
+  };
+})();
+
+module.exports.latency = dev; 

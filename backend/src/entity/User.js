@@ -14,7 +14,10 @@ class Cert {
       email: this.email,
       password: this.password,
     };
-    return Object.fromEntries(Object.entries(cert).filter(([k, v]) => v));
+    const filteredEntries = Object.entries(cert).filter(([k, v]) => v);
+    return Object.fromEntries(
+      filteredEntries.length === 0 ? [] : filteredEntries
+    );
   }
 }
 
@@ -36,7 +39,10 @@ class Agreements extends Cert {
       marketing: this.marketing,
       personal: this.personal,
     };
-    return Object.fromEntries(Object.entries(grees).filter(([k, v]) => v));
+    const filteredEntries = Object.entries(grees).filter(([k, v]) => v);
+    return Object.fromEntries(
+      filteredEntries.length === 0 ? [] : filteredEntries
+    );
   }
 }
 
@@ -91,7 +97,10 @@ class Location extends Agreements {
       poz: this.poz,
       roy: this.roy,
     };
-    return Object.fromEntries(Object.entries(location).filter(([k, v]) => v));
+    const filteredEntries = Object.entries(location).filter(([k, v]) => v);
+    return Object.fromEntries(
+      filteredEntries.length === 0 ? [] : filteredEntries
+    );
   }
 }
 
@@ -130,7 +139,7 @@ class Base extends Location {
   }
 
   getBaseInfo() {
-    return {
+    const base = {
       id: this.id,
       nickname: this.nickname,
       email: this.email,
@@ -141,6 +150,10 @@ class Base extends Location {
       created_at: this.created_at,
       updated_at: this.updated_at,
     };
+    const filteredEntries = Object.entries(base).filter(([k, v]) => v);
+    return Object.fromEntries(
+      filteredEntries.length === 0 ? [] : filteredEntries
+    );
   }
 
   toJson() {

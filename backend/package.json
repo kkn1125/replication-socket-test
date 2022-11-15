@@ -7,8 +7,8 @@
   "license": "ISC",
   "description": "",
   "scripts": {
-    "dev": "cross-env NODE_ENV=development node index.js",
-    "prod": "cross-env NODE_ENV=production node index.js"
+    "dev": "cross-env NODE_ENV=development nodemon -L --config nodemon.config.js",
+    "prod": "cross-env NODE_ENV=production nodemon -L --config nodemon.config.js"
   },
   "dependencies": {
     "dotenv": "^16.0.3",
