@@ -15,7 +15,7 @@ let user = {};
 
 function viewer() {
   for (let i = START; i < MAX; i++) {
-    let ws = new WebSocket(`ws://192.168.254.16:3000/?server=1`);
+    let ws = new WebSocket(`ws://192.168.254.16:3000/?server=3`);
     ws.binaryType = "arraybuffer";
     ws.onopen = (e) => {
       console.log("connected!");
@@ -108,5 +108,19 @@ function connections() {
     }, 10000);
   }, 10000);
 }
+
+function socketPing() {
+  let countConnection = 0;
+  for (let socket of sockets.values()) {
+    if (socket.readyState !== 0) {
+      countConnection += 1;
+    }
+  }
+  console.log('Current Connection Count:',countConnection);
+}
+
+setInterval(() => {
+  socketPing();
+}, 1000);
 
 connections();

@@ -64,7 +64,8 @@ Field.d(3, "float", "required")(Message.prototype, "poy");
 const app = uWs
   .App({})
   .ws("/*", {
-    // maxPayloadLength: 16 * 1024 * 1024,
+    maxBackpressure: 2048,
+    maxPayloadLength: 64 * 1024 * 1024,
     compression: uWs.SHARED_COMPRESSOR,
     idleTimeout: 64,
 
@@ -152,7 +153,9 @@ const app = uWs
         console.log(sockets.get(ws), "out");
         userService.deleteOrOfflineById(sockets.get(ws), ws, app);
         sockets.delete(ws);
-      } catch (e) {}
+      } catch (e) {
+        /* console.log(" 여긴가?", e); */
+      }
     },
   })
   .get("/", (res, req) => {
@@ -170,7 +173,7 @@ const app = uWs
 setInterval(() => {
   if (locationQueue.size() > 0) {
     const ws = servers.get(String(current));
-    console.log(ws.server)
+    // console.log(ws.server)
     if (ws) {
       // app.publish("broadcast", locationQueue.get(), true, true);
       // for (let temp = 0; temp < get.byteLength; temp += 15) {

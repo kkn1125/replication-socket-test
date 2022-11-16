@@ -486,60 +486,74 @@ function animation(frame) {
 requestAnimationFrame(animation);
 // };
 
-// let START = 1;
-// let MAX = 200 + START;
+let START = 1;
+let MAX = 200 + START;
 
-// function viewer() {
-//   for (let i = START; i < MAX; i++) {
-//     let ws = new Socket();
-//     ws.connect();
-//     sockets.set(i, ws);
-//   }
-//   console.log(`인원 ${sockets.size}명`);
-// }
+function viewer() {
+  for (let i = START; i < MAX; i++) {
+    let ws = new Socket();
+    ws.connect();
+    sockets.set(i, ws);
+  }
+  console.log(`인원 ${sockets.size}명`);
+}
 
-// function player() {
-//   for (let i = START; i < MAX; i++) {
-//     sockets.get(i).send(
-//       JSON.stringify({
-//         type: "player",
-//         nickname: "guest",
-//         pox: Math.random() * 500,
-//         poy: Math.random() * 500,
-//       })
-//     );
-//   }
-//   const count = Array.from(sockets.values()).reduce(
-//     (acc, cur) => (acc += cur.readyState === 0 ? 0 : 1),
-//     0
-//   );
-//   console.log(count);
-// }
+function player() {
+  for (let i = START; i < MAX; i++) {
+    sockets.get(i).send(
+      JSON.stringify({
+        type: "player",
+        nickname: "guest",
+        pox: Math.random() * 500,
+        poy: Math.random() * 500,
+      })
+    );
+  }
+  // const count = Array.from(sockets.values()).reduce(
+  //   (acc, cur) => (acc += cur.readyState === 0 ? 0 : 1),
+  //   0
+  // );
+  // console.log(count);
+}
 
-// function locations() {
-//   setInterval(() => {
-//     for (let i = START; i < MAX; i++) {
-//       sockets.get(i).send(
-//         Message.encode(
-//           new Message({
-//             id: i,
-//             pox: Math.random() * 500,
-//             poy: Math.random() * 500,
-//           })
-//         ).finish()
-//       );
+function locations() {
+  setInterval(() => {
+    for (let i = START; i < MAX; i++) {
+      sockets.get(i).send(
+        Message.encode(
+          new Message({
+            id: i,
+            pox: Math.random() * 500,
+            poy: Math.random() * 500,
+          })
+        ).finish()
+      );
+    }
+  }, 16);
+}
+
+function connections() {
+  viewer();
+  setTimeout(() => {
+    player();
+    setTimeout(() => {
+      locations();
+    }, 10000);
+  }, 10000);
+}
+
+// function socketPing() {
+//   let countConnection = 0;
+//   for (let socket of sockets.values()) {
+//     if (socket.ws().readyState !== 0) {
+//       countConnection += 1;
 //     }
-//   }, 16);
+//   }
+//   console.log("Current Connection Count:", countConnection);
 // }
 
-// function connections() {
-//   viewer();
-//   setTimeout(() => {
-//     player();
-//     setTimeout(() => {
-//       locations();
-//     }, 10000);
-//   }, 10000);
-// }
+// setInterval(() => {
+//   socketPing();
+// }, 1000);
 
-// connections();
+connections();

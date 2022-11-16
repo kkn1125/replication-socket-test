@@ -20,8 +20,14 @@ const port = import.meta.env.V_REMOTE_PORT ?? 3000;
 //   };
 // })();
 
+let interval = 0;
+
 class Socket {
   #ws = null;
+
+  ws() {
+    return this.#ws;
+  }
 
   connect() {
     const params = Object.fromEntries(
@@ -80,6 +86,11 @@ class Socket {
           Object.assign(user, json);
         }
       } else if (json instanceof Array) {
+        // if (interval > 100000) interval = 0;
+        // if (interval % 1000) {
+        //   console.log("플레이어 전환 또는 아웃 할 때:", json.length);
+        // }
+        // interval++;
         users = json;
       }
     }

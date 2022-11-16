@@ -5,6 +5,27 @@ const { slaveConfig } = require("../database/slaveConf");
 const { User } = require("../entity/User");
 const { latency } = require("../utils/tool");
 
+class QueryQueue {
+  #queue = [];
+  #master;
+  #slave;
+  constructor() {
+    this.#master = sql;
+    this.#slave = slave;
+  }
+  add(exec) {
+    this.#queue.push(exec);
+  }
+  execute() {
+    this.#queue.shift().call();
+  }
+  isEmpty() {
+    return this.#queue.length === 0;
+  }
+}
+
+const queryQueue = new QueryQueue();
+
 User.findAll = (ws, app) => {
   // latency.start("findall");
 
@@ -56,9 +77,13 @@ User.insert = (data, sockets, servers, ws) => {
     .promise()
     .query("INSERT INTO user SET ?", base)
     .then(async ([rows, fields]) => {
-      ws.subscribe("broadcast");
-      ws.subscribe(String(rows.insertId));
-      ws.subscribe(String(ws.server));
+      try {
+        ws.subscribe("broadcast");
+        ws.subscribe(String(rows.insertId));
+        ws.subscribe(String(ws.server));
+      } catch (e) {
+        console.log("lose socket to insert");
+      }
 
       sockets.set(ws, rows.insertId);
 
@@ -72,6 +97,7 @@ User.insert = (data, sockets, servers, ws) => {
       await sql.promise().query("INSERT INTO certifications SET ?", [cert]);
     })
     .catch((e) => {
+      console.log(e);
       console.log("skip error");
     });
 };
@@ -118,7 +144,7 @@ User.update = async (id, data, ws, app) => {
   // const slaveCon = await slavePool.getConnection();
   // slaveCon.beginTransaction();
 
-  await sql
+  sql
     .promise()
     .query(
       `
@@ -138,31 +164,34 @@ User.update = async (id, data, ws, app) => {
     )
     .then(([rows1, field1]) => {
       ws.send(JSON.stringify(rows1[0]));
-    });
-  await sql
-    .promise()
-    .query(
-      `
-        SELECT user.*,
-        locations.*,
-        certifications.email 'cert_email',
-        certifications.password 'cert_pass',
-        agreements.*
-        FROM user
-        LEFT OUTER JOIN locations
-        ON user.id = locations.user_id
-        LEFT OUTER JOIN certifications
-        ON user.id = certifications.user_id
-        LEFT OUTER JOIN agreements
-        ON user.id = agreements.user_id
-        WHERE locations.type = 'player'
-        AND locations.server = ?
-        `,
-      [ws.server]
-    )
-    .then((rows2, fileds2) => {
-      ws.send(JSON.stringify(rows2));
-      app.publish(String(ws.server), JSON.stringify(rows2[0]));
+      sql
+        .promise()
+        .query(
+          `
+            SELECT user.*,
+            locations.*,
+            certifications.email 'cert_email',
+            certifications.password 'cert_pass',
+            agreements.*
+            FROM user
+            LEFT OUTER JOIN locations
+            ON user.id = locations.user_id
+            LEFT OUTER JOIN certifications
+            ON user.id = certifications.user_id
+            LEFT OUTER JOIN agreements
+            ON user.id = agreements.user_id
+            WHERE locations.type = 'player'
+            AND locations.server = ?
+            `,
+          [ws.server]
+        )
+        .then((rows2, fileds2) => {
+          ws.send(JSON.stringify(rows2[0]));
+          app.publish(String(ws.server), JSON.stringify(rows2[0]));
+        });
+    })
+    .catch((e) => {
+      console.log("lose socket to update");
     });
 
   // masterCon.commit();
@@ -182,7 +211,7 @@ User.deleteOrOfflineById = (id, ws, app) => {
       [id]
     )
     .then(([found, fields]) => {
-      // console.log(found);
+      console.log(found);
       const query =
         found.length === 0
           ? `
@@ -222,10 +251,19 @@ User.deleteOrOfflineById = (id, ws, app) => {
                 `
             )
             .then(([rows]) => {
-              // ws.publish(JSON.stringify(rows));
+              app.publish(String(id), JSON.stringify(rows));
               app.publish(String(ws.server), JSON.stringify(rows));
+            })
+            .catch((e) => {
+              console.log("second select error", e);
             });
+        })
+        .catch((e) => {
+          console.log("wrap error", e);
         });
+    })
+    .catch((e) => {
+      console.log("select error", e);
     });
 };
 
