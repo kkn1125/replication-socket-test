@@ -218,13 +218,12 @@ User.deleteOrOfflineById = (id, ws, app) => {
             UPDATE locations
             SET type='offline'
             WHERE user_id=?
-            AND server=?
             `
           : "DELETE FROM user WHERE id=?";
 
       sql
         .promise()
-        .query(query, found.length === 0 ? [id, ws.server] : [id])
+        .query(query, id)
         .then(() => {
           sql
             .promise()

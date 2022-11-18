@@ -174,6 +174,40 @@ function render() {
   }
 }
 
+function updateUserList() {
+  const position = {
+    x: 10,
+    y: 10,
+  };
+  const maxWidth = 15;
+  ctx.fillStyle = "#FFFFFF";
+  ctx.fillRect(
+    position.x,
+    position.y,
+    maxWidth * 10,
+    (users.length + 1) * 15 + 15
+  );
+  const reverseUserList = users.sort((a, b) => a.id - b.id);
+  ctx.textAlign = "left";
+  ctx.fillStyle = "#000000";
+  ctx.font = "bold 1rem sansserif";
+  ctx.fillText(
+    `User List (${users.length})`,
+    position.x + maxWidth,
+    position.y + 20
+  );
+  for (let index in reverseUserList) {
+    ctx.textAlign = "left";
+    ctx.font = "normal 10px sansserif";
+    ctx.fillStyle = "#000000";
+    ctx.fillText(
+      reverseUserList[index].nickname,
+      position.x + maxWidth,
+      position.y + 35 + 15 * index
+    );
+  }
+}
+
 function handleKeyDown(e) {
   joystick[e.key.toLowerCase()] = true;
 }
@@ -187,63 +221,16 @@ function handleKeyUp(e) {
   }
 }
 
-let direction = {
-  w: -90,
-  a: 180,
-  s: 90,
-  d: 0,
-};
-let currentDirection = "w";
-
-function addUser(ctx, xsize, ysize, { pox, poy, nickname }) {
+function addUser(ctx, xsize, ysize, { pox, poy, roy, nickname }) {
   ctx.fillText(nickname, pox, poy - 25);
   ctx.textAlign = "center";
 
-  if (joystick.w || joystick.arrowup) {
-    currentDirection = "w";
-    ctx.save();
-    ctx.translate(pox, poy);
-    ctx.rotate((Math.PI / 180) * direction["w"]);
-    ctx.translate(-pox, -poy);
-    ctx.drawImage(man, pox - 20, poy - 20, xsize * 3.5, ysize * 3);
-    ctx.restore();
-  } else if (joystick.a || joystick.arrowleft) {
-    currentDirection = "a";
-    ctx.save();
-    ctx.translate(pox, poy);
-    ctx.rotate((Math.PI / 180) * direction["a"]);
-    ctx.translate(-pox, -poy);
-    ctx.drawImage(man, pox - 20, poy - 20, xsize * 3.5, ysize * 3);
-    ctx.restore();
-  } else if (joystick.s || joystick.arrowdown) {
-    currentDirection = "s";
-    ctx.save();
-    ctx.translate(pox, poy);
-    ctx.rotate((Math.PI / 180) * direction["s"]);
-    ctx.translate(-pox, -poy);
-    ctx.drawImage(man, pox - 20, poy - 20, xsize * 3.5, ysize * 3);
-    ctx.restore();
-  } else if (joystick.d || joystick.arrowright) {
-    currentDirection = "d";
-    ctx.save();
-    ctx.translate(pox, poy);
-    ctx.rotate((Math.PI / 180) * direction["d"]);
-    ctx.translate(-pox, -poy);
-    ctx.drawImage(man, pox - 20, poy - 20, xsize * 3.5, ysize * 3);
-    ctx.restore();
-  } else {
-    ctx.save();
-    ctx.translate(pox, poy);
-    ctx.rotate((Math.PI / 180) * direction[currentDirection]);
-    ctx.translate(-pox, -poy);
-    ctx.drawImage(man, pox - 20, poy - 20, xsize * 3.5, ysize * 3);
-    ctx.restore();
-  }
-
-  // ctx.beginPath();
-  // ctx.arc(pox, poy, ysize, 0, 2 * Math.PI);
-  // ctx.fill();
-  // ctx.fillRect(pox, poy, xsize, ysize);
+  ctx.save();
+  ctx.translate(pox, poy);
+  ctx.rotate(roy);
+  ctx.translate(-pox, -poy);
+  ctx.drawImage(man, pox - 20, poy - 20, xsize * 3.5, ysize * 3);
+  ctx.restore();
 }
 
 function collision(xsize, ysize) {
@@ -328,13 +315,6 @@ function drawMap(ctx, { mapList, size }, unitSize) {
         bush.height = dist / 2;
         ctx.drawImage(bush, xl * dist, yl * dist, dist, dist);
       }
-      // ctx.fillRect(xl * dist, yl * dist, dist, dist);
-      // ctx.fillText(
-      //   "",
-      //   (xl + 1) * dist - dist / 2,
-      //   (yl + 1) * dist - dist / 2
-      // );
-      // ctx.textAlign = "center";
     });
   });
 }
@@ -378,14 +358,14 @@ function moving(frame) {
     }
 
     if (user.pox < tempx) {
-      currentDirection = "a";
+      user.roy = (Math.PI / 180) * 180;
     } else if (user.pox > tempx) {
-      currentDirection = "d";
+      user.roy = (Math.PI / 180) * 0;
     }
     if (user.poy < tempy) {
-      currentDirection = "w";
+      user.roy = (Math.PI / 180) * -90;
     } else if (user.poy > tempy) {
-      currentDirection = "s";
+      user.roy = (Math.PI / 180) * 90;
     }
 
     wallLimitCollision();
@@ -409,6 +389,7 @@ function moving(frame) {
           server: user.server,
           pox: user.pox,
           poy: user.poy,
+          roy: user.roy,
         })
       ).finish()
     );
@@ -438,36 +419,41 @@ function moving(frame) {
     if (joystick.w || joystick.arrowup) {
       useMap && collision(XSIZE, YSIZE);
       user.poy -= SPEED;
+      user.roy = (Math.PI / 180) * -90;
     }
     if (joystick.a || joystick.arrowleft) {
       useMap && collision(XSIZE, YSIZE);
       user.pox -= SPEED;
+      user.roy = (Math.PI / 180) * 180;
     }
     if (joystick.s || joystick.arrowdown) {
       useMap && collision(XSIZE, YSIZE);
       user.poy += SPEED;
+      user.roy = (Math.PI / 180) * 90;
     }
     if (joystick.d || joystick.arrowright) {
       useMap && collision(XSIZE, YSIZE);
       user.pox += SPEED;
+      user.roy = (Math.PI / 180) * 0;
     }
 
     wallLimitCollision();
 
     if (joystick.w || joystick.arrowup) {
-      currentDirection = "w";
     } else if (joystick.s || joystick.arrowdown) {
-      currentDirection = "s";
     }
     if (joystick.a || joystick.arrowleft) {
-      currentDirection = "a";
     } else if (joystick.d || joystick.arrowright) {
-      currentDirection = "d";
     }
 
     socket.send(
       Message.encode(
-        new Message({ id: user.id, pox: user.pox, poy: user.poy })
+        new Message({
+          id: user.id,
+          pox: user.pox,
+          poy: user.poy,
+          roy: user.roy,
+        })
       ).finish()
     );
   }
@@ -479,6 +465,7 @@ function animation(frame) {
   ctx.clearRect(0, 0, canvas.width, canvas.height);
   useMap && drawMap(ctx, convertedMap, Math.max(XSIZE, YSIZE));
   render();
+  updateUserList();
   moving(frame);
   requestAnimationFrame(animation);
 }
@@ -509,11 +496,6 @@ function player() {
       })
     );
   }
-  // const count = Array.from(sockets.values()).reduce(
-  //   (acc, cur) => (acc += cur.readyState === 0 ? 0 : 1),
-  //   0
-  // );
-  // console.log(count);
 }
 
 function locations() {
@@ -556,4 +538,4 @@ function connections() {
 //   socketPing();
 // }, 1000);
 
-connections();
+// connections();

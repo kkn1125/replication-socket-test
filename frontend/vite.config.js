@@ -13,7 +13,7 @@ export default defineConfig(({ command, mode, ssrBuild }) => {
       __APP_ENV__: env.APP_ENV,
     },
     server: {
-      host: "localhost",
+      host: "0.0.0.0",
       port: 4000,
       cors: true,
       watch: {

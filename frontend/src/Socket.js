@@ -56,10 +56,10 @@ class Socket {
   message(message) {
     const { data } = message;
     if (data instanceof ArrayBuffer) {
-      for (let i = 0; i < Math.round(data.byteLength / 15); i++) {
+      for (let i = 0; i < Math.round(data.byteLength / 20); i++) {
         try {
           const json = Message.decode(
-            new Uint8Array(data.slice(i * 15, i * 15 + 15))
+            new Uint8Array(data.slice(i * 20, i * 20 + 20))
           ).toJSON();
           for (let user of users) {
             if (user.id === json.id) {

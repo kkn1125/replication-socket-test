@@ -4,6 +4,7 @@ const { Message, Field } = protobuf;
 Field.d(1, "fixed32", "required")(Message.prototype, "id");
 Field.d(2, "float", "required")(Message.prototype, "pox");
 Field.d(3, "float", "required")(Message.prototype, "poy");
+Field.d(4, "float", "required")(Message.prototype, "roy");
 // Field.d(1, "fixed32", "optional")(Message.prototype, "id");
 // Field.d(2, "string", "optional")(Message.prototype, "nickname");
 // Field.d(3, "string", "optional")(Message.prototype, "email");

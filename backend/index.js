@@ -35,6 +35,7 @@ console.log("os", networkInterfaces);
 Field.d(1, "fixed32", "required")(Message.prototype, "id");
 Field.d(2, "float", "required")(Message.prototype, "pox");
 Field.d(3, "float", "required")(Message.prototype, "poy");
+Field.d(4, "float", "required")(Message.prototype, "roy");
 // Field.d(1, "fixed32", "optional")(Message.prototype, "id");
 // Field.d(2, "string", "optional")(Message.prototype, "nickname");
 // Field.d(3, "string", "optional")(Message.prototype, "email");
@@ -116,7 +117,7 @@ const app = uWs
           const data = Message.decode(new Uint8Array(message));
           data.id = sockets.get(ws);
           current = data.id;
-
+          // console.log(data)
           // TODO: 분기문 수정 필요
           if (data.hasOwnProperty("pox")) {
             // TODO: update
@@ -150,8 +151,9 @@ const app = uWs
     },
     close: (ws, code, message) => {
       try {
-        console.log(sockets.get(ws), "out");
-        userService.deleteOrOfflineById(sockets.get(ws), ws, app);
+        const id = sockets.get(ws);
+        console.log(id, "out");
+        userService.deleteOrOfflineById(id, ws, app);
         sockets.delete(ws);
       } catch (e) {
         /* console.log(" 여긴가?", e); */
@@ -185,4 +187,10 @@ setInterval(() => {
 
 process.on("SIGINT", function () {
   console.log("shut down");
+  // for (let socket of sockets.values()) {
+  //   userService.deleteOrOfflineById(id, socket, app);
+  // }
+  // for (let key of sockets.keys()) {
+  //   sockets.delete(key);
+  // }
 });
