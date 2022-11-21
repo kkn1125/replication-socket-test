@@ -26,10 +26,8 @@ class QueryQueue {
 
 const queryQueue = new QueryQueue();
 
-User.findAll = (ws, app) => {
-  // latency.start("findall");
-
-  slave
+User.broadcast = (server, app) => {
+  sql
     .promise()
     .query(
       `
@@ -46,10 +44,45 @@ User.findAll = (ws, app) => {
       LEFT OUTER JOIN agreements
       ON user.id = agreements.user_id
       WHERE locations.type = 'player'
-      ${ws.server !== undefined ? "AND locations.server=" + ws.server : ""}
-      `
+      AND locations.server = ?
+      `,
+      [server]
     )
     .then(([rows, fields]) => {
+      app.publish(String(server), JSON.stringify(rows));
+    })
+    .catch((e) => {
+      console.log(e);
+      console.log("error skip in broadcast");
+    });
+};
+
+User.findAll = (ws, app) => {
+  // latency.start("findall");
+
+  sql
+    .promise()
+    .query(
+      `
+      SELECT user.*,
+      locations.*,
+      certifications.email 'cert_email',
+      certifications.password 'cert_pass',
+      agreements.*
+      FROM user
+      LEFT OUTER JOIN locations
+      ON user.id = locations.user_id
+      LEFT OUTER JOIN certifications
+      ON user.id = certifications.user_id
+      LEFT OUTER JOIN agreements
+      ON user.id = agreements.user_id
+      WHERE locations.type = 'player'
+      AND locations.server = ?
+      `,
+      [ws.server]
+    )
+    .then(([rows, fields]) => {
+      // console.log("findall", rows.length);
       ws.send(JSON.stringify(rows));
       app.publish(String(ws.server), JSON.stringify(rows));
       // latency.end("findall");
@@ -115,9 +148,9 @@ User.update = async (id, data, ws, app) => {
   const agrees = user.getAgreements();
   Object.assign(location, { server: ws.server });
 
-  // const masterPool = maria.createPool(masterConfig).promise();
-  // const masterCon = await masterPool.getConnection();
-  // masterCon.beginTransaction();
+  const masterPool = maria.createPool(masterConfig).promise();
+  const masterCon = await masterPool.getConnection();
+  masterCon.beginTransaction();
 
   if (Object.keys(base).length !== 0) {
     await sql.promise().query("UPDATE user SET ? WHERE id=?", [base, id]);
@@ -148,46 +181,48 @@ User.update = async (id, data, ws, app) => {
     .promise()
     .query(
       `
-    SELECT user.id,
-    locations.type,
-    locations.pox,
-    locations.poy,
-    locations.poz,
-    locations.roy
-    FROM user
-    LEFT JOIN locations
-    ON user.id = locations.user_id
-    WHERE user.id = ?
-    AND locations.server = ?
+      SELECT user.id,
+      locations.type,
+      locations.pox,
+      locations.poy,
+      locations.poz,
+      locations.roy
+      FROM user
+      LEFT JOIN locations
+      ON user.id = locations.user_id
+      WHERE user.id = ?
+      AND locations.server = ?
     `,
       [id, ws.server]
     )
-    .then(([rows1, field1]) => {
+    .then(([rows1, fields1]) => {
       ws.send(JSON.stringify(rows1[0]));
       sql
         .promise()
         .query(
           `
-            SELECT user.*,
-            locations.*,
-            certifications.email 'cert_email',
-            certifications.password 'cert_pass',
-            agreements.*
-            FROM user
-            LEFT OUTER JOIN locations
-            ON user.id = locations.user_id
-            LEFT OUTER JOIN certifications
-            ON user.id = certifications.user_id
-            LEFT OUTER JOIN agreements
-            ON user.id = agreements.user_id
-            WHERE locations.type = 'player'
-            AND locations.server = ?
-            `,
+          SELECT user.*,
+          locations.*,
+          certifications.email 'cert_email',
+          certifications.password 'cert_pass',
+          agreements.*
+          FROM user
+          LEFT OUTER JOIN locations
+          ON user.id = locations.user_id
+          LEFT OUTER JOIN certifications
+          ON user.id = certifications.user_id
+          LEFT OUTER JOIN agreements
+          ON user.id = agreements.user_id
+          WHERE locations.type = 'player'
+          AND locations.server = ?
+          `,
           [ws.server]
         )
-        .then((rows2, fileds2) => {
-          ws.send(JSON.stringify(rows2[0]));
-          app.publish(String(ws.server), JSON.stringify(rows2[0]));
+        .then(([rows2, fileds2]) => {
+          // console.log("update rows2", rows2.length);
+          // console.log(rows2[0]);
+          ws.send(JSON.stringify(rows2));
+          app.publish(String(ws.server), JSON.stringify(rows2));
         });
     })
     .catch((e) => {
@@ -211,7 +246,7 @@ User.deleteOrOfflineById = (id, ws, app) => {
       [id]
     )
     .then(([found, fields]) => {
-      console.log(found);
+      // console.log(found);
       const query =
         found.length === 0
           ? `
@@ -220,7 +255,7 @@ User.deleteOrOfflineById = (id, ws, app) => {
             WHERE user_id=?
             `
           : "DELETE FROM user WHERE id=?";
-
+      console.log("id", id);
       sql
         .promise()
         .query(query, id)
@@ -229,27 +264,25 @@ User.deleteOrOfflineById = (id, ws, app) => {
             .promise()
             .query(
               `
-                SELECT user.*,
-                locations.*,
-                certifications.email 'cert_email',
-                certifications.password 'cert_pass',
-                agreements.*
-                FROM user
-                LEFT OUTER JOIN locations
-                ON user.id = locations.user_id
-                LEFT OUTER JOIN certifications
-                ON user.id = certifications.user_id
-                LEFT OUTER JOIN agreements
-                ON user.id = agreements.user_id
-                WHERE locations.type = 'player'
-                ${
-                  ws.server !== undefined
-                    ? "AND locations.server=" + ws.server
-                    : ""
-                }
-                `
+              SELECT user.*,
+              locations.*,
+              certifications.email 'cert_email',
+              certifications.password 'cert_pass',
+              agreements.*
+              FROM user
+              LEFT OUTER JOIN locations
+              ON user.id = locations.user_id
+              LEFT OUTER JOIN certifications
+              ON user.id = certifications.user_id
+              LEFT OUTER JOIN agreements
+              ON user.id = agreements.user_id
+              WHERE locations.type = 'player'
+              AND locations.server=?
+              `,
+              [ws.server]
             )
             .then(([rows]) => {
+              // console.log("after delete", rows);
               app.publish(String(id), JSON.stringify(rows));
               app.publish(String(ws.server), JSON.stringify(rows));
             })

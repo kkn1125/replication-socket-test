@@ -135,15 +135,89 @@ const joystick = {
 };
 let clicked = false;
 let targetPoint = null;
+let hoverUser = null;
+window.addEventListener("mousemove", handleSelectingUser);
+window.addEventListener("contextmenu", handleClickUser);
 window.addEventListener("keydown", handleKeyDown);
 window.addEventListener("keyup", handleKeyUp);
-window.addEventListener("blur", handleKeyUp);
+// window.addEventListener("blur", handleKeyUp);
 window.addEventListener("resize", handleResize, false);
 window.addEventListener("mousedown", handleMouseDown);
 window.addEventListener("mousemove", handleMouseMove);
 window.addEventListener("mouseup", handleMouseUp);
+function handleSelectingUser(e) {
+  if (!user) {
+    return;
+  }
+  e.preventDefault();
+  const cx = e.clientX;
+  const cy = e.clientY;
+  // const { mapList, size } = convertedMap;
+  // const { x, y } = size;
+  // const dist = scale(x, y) * MAPSIZE;
+  // const xin = parseInt((cx - XSIZE) / dist);
+  // const xout = parseInt((cx + XSIZE) / dist);
+  // const yin = parseInt((cy - YSIZE) / dist);
+  // const yout = parseInt((cy + YSIZE) / dist);
+  // const xx = parseInt(cx / dist);
+  // const yy = parseInt(cy / dist);
+  // const positionX = parseInt(cx / dist);
+  // const positionY = parseInt(cy / dist);
+
+  const targetUser = users.find(
+    (user) =>
+      cx > user.pox - XSIZE &&
+      cx < user.pox + XSIZE &&
+      cy > user.poy - YSIZE &&
+      cy < user.poy + YSIZE
+  );
+
+  // const blockName = (num) =>
+  //   num === 0
+  //     ? "ground"
+  //     : num === 1
+  //     ? "block"
+  //     : num === 2
+  //     ? "water"
+  //     : num === 3
+  //     ? "rock"
+  //     : num === 4
+  //     ? "tree"
+  //     : num === 5
+  //     ? "bush"
+  //     : "man";
+
+  // targetUser
+  //   ? console.log("user", targetUser)
+  //   : console.log(
+  //       "block:",
+  //       blockName(convertedMap.mapList[positionY][positionX])
+  //     );
+  if (targetUser) {
+    hoverUser = targetUser;
+  } else {
+    hoverUser = null;
+  }
+}
+function handleClickUser(e) {
+  if (!user) {
+    return;
+  }
+  e.preventDefault();
+  const cx = e.clientX;
+  const cy = e.clientY;
+  const targetUser = users.find(
+    (user) =>
+      cx > user.pox - XSIZE &&
+      cx < user.pox + XSIZE &&
+      cy > user.poy - YSIZE &&
+      cy < user.poy + YSIZE
+  );
+
+  console.log(targetUser);
+}
 function handleMouseDown(e) {
-  if (e.target.nodeName === "CANVAS") {
+  if (e.target.nodeName === "CANVAS" && e.which !== 3) {
     e.preventDefault();
     clicked = true;
     const x = e.clientX;
@@ -153,7 +227,7 @@ function handleMouseDown(e) {
 }
 function handleMouseMove(e) {
   e.preventDefault();
-  if (clicked && e.target.nodeName === "CANVAS") {
+  if (clicked && e.target.nodeName === "CANVAS" && e.which !== 3) {
     const x = e.clientX;
     const y = e.clientY;
     targetPoint = [x, y];
@@ -161,7 +235,9 @@ function handleMouseMove(e) {
 }
 function handleMouseUp(e) {
   e.preventDefault();
-  clicked = false;
+  if (e.whitch !== 3) {
+    clicked = false;
+  }
 }
 function handleResize() {
   canvas.width = innerWidth;
@@ -222,13 +298,20 @@ function handleKeyUp(e) {
 }
 
 function addUser(ctx, xsize, ysize, { pox, poy, roy, nickname }) {
-  ctx.fillText(nickname, pox, poy - 25);
+  // ctx.fillRect(pox - xsize, poy - ysize, xsize * 2, ysize * 2);
+
   ctx.textAlign = "center";
+  ctx.fillText(nickname, pox, poy - 25);
 
   ctx.save();
   ctx.translate(pox, poy);
   ctx.rotate(roy);
   ctx.translate(-pox, -poy);
+  if (hoverUser && hoverUser.nickname === nickname) {
+    // console.log(hoverUser.nickname)
+    // console.log(nickname)
+    ctx.filter = "drop-shadow(0px 0px 10px #ffffff)";
+  }
   ctx.drawImage(man, pox - 20, poy - 20, xsize * 3.5, ysize * 3);
   ctx.restore();
 }
@@ -400,6 +483,7 @@ function moving(frame) {
   } else {
     SPEED = WALK;
   }
+
   // move values
   if (
     user &&

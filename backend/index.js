@@ -1,7 +1,8 @@
 const path = require("path");
 const dotenv = require("dotenv");
 const os = require("os");
-require("./src/utils/tool");
+const pm2 = require("pm2");
+// require("./src/utils/tool");
 
 if (process.env.NODE_ENV === "development") {
   dotenv.config({
@@ -19,7 +20,7 @@ const userService = require("./src/service/user.service");
 const { User } = require("./src/entity/User");
 const locationService = require("./src/service/location.service");
 const host = process.env.HOST || "localhost";
-const port = Number(process.env.PORT) || 3000;
+const port = Number(process.env.SERVER_PORT) || 3000;
 const { Message, Field } = protobuf;
 const sockets = new Map();
 const servers = new Map();
@@ -91,24 +92,28 @@ const app = uWs
       );
     },
     open: (ws) => {
-      /**
-       * 1. 뷰어 데이터 생성
-       * 2. 뷰어 데이터 저장
-       * 3. 저장 하고난 PK로 ws를 키로 맵에 저장 (소스코드)
-       * 4. 플레이어 데이터 받기
-       * 5. 뷰어 데이터 클라이언트로 보내기
-       * 6. (옵션) 뷰어 데이터 전체 클라이언트로 뿌리기
-       */
-      // create user data
-      const user = new User({
-        type: "viewer",
-        server: ws.server || 1,
-      });
+      try {
+        /**
+         * 1. 뷰어 데이터 생성
+         * 2. 뷰어 데이터 저장
+         * 3. 저장 하고난 PK로 ws를 키로 맵에 저장 (소스코드)
+         * 4. 플레이어 데이터 받기
+         * 5. 뷰어 데이터 클라이언트로 보내기
+         * 6. (옵션) 뷰어 데이터 전체 클라이언트로 뿌리기
+         */
+        // create user data
+        const user = new User({
+          type: "viewer",
+          server: ws.server || 1,
+        });
 
-      // insert userData
-      userService.insert(user, sockets, servers, ws);
-      userService.findAll(ws, app);
+        // console.log("user server", ws.server);
 
+        // insert userData
+        userService.insert(user, sockets, servers, ws);
+        userService.findAll(ws, app);
+        // process.send(String(ws.server));
+      } catch (e) {}
       // console.log("입장", sockets);
     },
     message: (ws, message, isBinary) => {
@@ -129,6 +134,9 @@ const app = uWs
             //   true
             // );
             locationQueue.enter(Message.encode(new Message(data)).finish());
+            process.send(
+              JSON.stringify(Object.assign(data, { server: ws.server }))
+            );
           }
         } else {
           const data = new TextDecoder().decode(message);
@@ -139,6 +147,7 @@ const app = uWs
               // console.log(sockets.get(ws));
               if (sockets.get(ws) !== undefined || sockets.get(ws) !== null) {
                 userService.update(sockets.get(ws), json, ws, app);
+                // process.send(String(ws.server));
               }
             }
           } else {
@@ -153,6 +162,7 @@ const app = uWs
       try {
         const id = sockets.get(ws);
         console.log(id, "out");
+        // process.send(String(ws.server));
         userService.deleteOrOfflineById(id, ws, app);
         sockets.delete(ws);
       } catch (e) {
@@ -175,22 +185,36 @@ const app = uWs
 setInterval(() => {
   if (locationQueue.size() > 0) {
     const ws = servers.get(String(current));
-    // console.log(ws.server)
     if (ws) {
-      // app.publish("broadcast", locationQueue.get(), true, true);
-      // for (let temp = 0; temp < get.byteLength; temp += 15) {
+      // latency.start("publish");
       app.publish(String(ws.server), locationQueue.get(), true, true);
-      // }
+      // latency.end("publish");
     }
   }
 }, 16);
 
+pm2.launchBus(function (err, pm2_bus) {
+  pm2_bus.on("process:msg", function (packet) {
+    // console.log(packet.raw);
+    if (packet.raw.match(/[^0-9]/g)) {
+      const data = JSON.parse(packet.raw);
+      const server = data.server;
+      delete data["server"];
+      // locationQueue.enter(Message.encode(new Message(data)).finish());
+      userService.broadcast(server, app);
+      // app.publish(
+      //   String(server),
+      //   Message.encode(new Message(data)).finish(),
+      //   true,
+      //   true
+      // );
+    } else {
+      const server = Number(packet.raw);
+      userService.broadcast(server, app);
+    }
+  });
+});
+
 process.on("SIGINT", function () {
   console.log("shut down");
-  // for (let socket of sockets.values()) {
-  //   userService.deleteOrOfflineById(id, socket, app);
-  // }
-  // for (let key of sockets.keys()) {
-  //   sockets.delete(key);
-  // }
 });

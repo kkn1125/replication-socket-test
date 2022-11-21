@@ -10,7 +10,7 @@ let slaveConnection = null;
 const connectionHandler = () => {
   // 재귀 함수 실행 시 변수 재정의
   mariaConnection = maria.createConnection(masterConfig);
-  
+
   mariaConnection.connect((error) => {
     mariaConnection.on("error", (errorEvent) => {
       if (errorEvent.code === "PROTOCOL_CONNECTION_LOST") {
@@ -22,6 +22,9 @@ const connectionHandler = () => {
       }
     });
 
+    mariaConnection.on("connection", (error) => {
+      console.log("is error?", error);
+    });
     console.log("DB Connected!");
   });
 
