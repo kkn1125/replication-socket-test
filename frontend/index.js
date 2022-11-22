@@ -199,6 +199,7 @@ function handleSelectingUser(e) {
     hoverUser = null;
   }
 }
+let followUser = null;
 function handleClickUser(e) {
   if (!user) {
     return;
@@ -214,7 +215,7 @@ function handleClickUser(e) {
       cy < user.poy + YSIZE
   );
 
-  console.log(targetUser);
+  followUser = targetUser;
 }
 function handleMouseDown(e) {
   if (e.target.nodeName === "CANVAS" && e.which !== 3) {
@@ -420,24 +421,36 @@ function wallLimitCollision() {
   tempx = user.pox; // x 값 동일
   tempy = user.poy; // y 값 동일
 }
-
+let speed = 0;
+let beforex = 0;
+let beforey = 0;
 function moving(frame) {
+  if (followUser) {
+    if (followUser.id !== user.id) {
+      targetPoint = [followUser.pox, followUser.poy];
+    }
+  }
   if (user && user.type && user.type === "player" && targetPoint) {
+    if (SPEED <= speed) {
+      speed = SPEED;
+    } else {
+      speed += 0.1;
+    }
     if (user.pox < targetPoint[0]) {
       useMap && collision(XSIZE, YSIZE);
-      user.pox += SPEED;
+      user.pox += speed;
     }
     if (user.pox > targetPoint[0]) {
       useMap && collision(XSIZE, YSIZE);
-      user.pox -= SPEED;
+      user.pox -= speed;
     }
     if (user.poy < targetPoint[1]) {
+      user.poy += speed;
       useMap && collision(XSIZE, YSIZE);
-      user.poy += SPEED;
     }
     if (user.poy > targetPoint[1]) {
       useMap && collision(XSIZE, YSIZE);
-      user.poy -= SPEED;
+      user.poy -= speed;
     }
 
     if (user.pox < tempx) {
@@ -461,8 +474,10 @@ function moving(frame) {
           Math.abs(targetPoint[1] - user.poy) < 3))
     ) {
       console.log("mouse move done!");
+      speed = 0;
       // clicked = false; // 마우스 방향 끊고 싶을 때
       targetPoint = null;
+      // followUser = null;
     }
 
     socket.send(
@@ -484,6 +499,12 @@ function moving(frame) {
     SPEED = WALK;
   }
 
+  if (beforex === user.pox && beforey === user.poy) {
+    speed = 0;
+  }
+  beforex = user.pox;
+  beforey = user.poy;
+
   // move values
   if (
     user &&
@@ -500,24 +521,30 @@ function moving(frame) {
   ) {
     targetPoint = null;
 
+    if (SPEED <= speed) {
+      speed = SPEED;
+    } else {
+      speed += 0.1;
+    }
+
     if (joystick.w || joystick.arrowup) {
       useMap && collision(XSIZE, YSIZE);
-      user.poy -= SPEED;
+      user.poy -= speed;
       user.roy = (Math.PI / 180) * -90;
     }
     if (joystick.a || joystick.arrowleft) {
       useMap && collision(XSIZE, YSIZE);
-      user.pox -= SPEED;
+      user.pox -= speed;
       user.roy = (Math.PI / 180) * 180;
     }
     if (joystick.s || joystick.arrowdown) {
       useMap && collision(XSIZE, YSIZE);
-      user.poy += SPEED;
+      user.poy += speed;
       user.roy = (Math.PI / 180) * 90;
     }
     if (joystick.d || joystick.arrowright) {
       useMap && collision(XSIZE, YSIZE);
-      user.pox += SPEED;
+      user.pox += speed;
       user.roy = (Math.PI / 180) * 0;
     }
 
@@ -529,7 +556,12 @@ function moving(frame) {
     if (joystick.a || joystick.arrowleft) {
     } else if (joystick.d || joystick.arrowright) {
     }
-
+    console.log("current user position:", {
+      id: user.id,
+      pox: user.pox,
+      poy: user.poy,
+      roy: user.roy,
+    });
     socket.send(
       Message.encode(
         new Message({
@@ -541,6 +573,23 @@ function moving(frame) {
       ).finish()
     );
   }
+
+  // if (
+  //   !targetPoint &&
+  //   (joystick.w ||
+  //     joystick.a ||
+  //     joystick.s ||
+  //     joystick.d ||
+  //     joystick.arrowup ||
+  //     joystick.arrowleft ||
+  //     joystick.arrowdown ||
+  //     joystick.arrowright)
+  // ) {
+  //   speed = 0.1;
+  //   if (speed <= 0) {
+  //     speed = 0;
+  //   }
+  // }
 }
 
 function animation(frame) {

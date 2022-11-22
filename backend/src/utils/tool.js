@@ -26,7 +26,7 @@ Date.prototype.format = function (format) {
   });
 };
 
-const dev = (function () {
+const latency = (function () {
   const labels = {};
   return {
     start(label) {
@@ -40,4 +40,29 @@ const dev = (function () {
   };
 })();
 
-module.exports.latency = dev; 
+const dev = function () {};
+dev.prototype.origin = "[DEV] ::";
+dev.prototype.preffix = "[DEV] ::";
+dev.alias = (alias) => (dev.prototype.preffix = alias);
+
+Object.assign(
+  dev,
+  Object.fromEntries(
+    Object.entries(console).map(([key, value]) => {
+      const wrap = function (...arg) {
+        value.call(console, dev.prototype.preffix, ...arg);
+        if (dev.prototype.origin !== dev.prototype.preffix) {
+          dev.prototype.preffix = dev.prototype.origin;
+        }
+      };
+      if (key === "memory") {
+        return [key, value];
+      } else {
+        return [key, wrap.bind(console)];
+      }
+    })
+  )
+);
+
+module.exports.latency = latency;
+module.exports.dev = dev;

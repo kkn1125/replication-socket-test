@@ -1,5 +1,6 @@
 const maria = require("mysql2");
 const slave = require("mysql2");
+const { dev } = require("../utils/tool");
 const { masterConfig } = require("./mariadbConf");
 const { slaveConfig } = require("./slaveConf");
 
@@ -15,17 +16,17 @@ const connectionHandler = () => {
     mariaConnection.on("error", (errorEvent) => {
       if (errorEvent.code === "PROTOCOL_CONNECTION_LOST") {
         mariaConnection.destroy();
-        console.log("DB CONNECTION RESTART!!");
+        dev.log("DB CONNECTION RESTART!!");
         connectionHandler();
       } else {
         throw errorEvent;
       }
     });
+  });
 
-    mariaConnection.on("connection", (error) => {
-      console.log("is error?", error);
-    });
-    console.log("DB Connected!");
+  mariaConnection.on("connect", (connection) => {
+    dev.log("master handshake id →", connection.connectionId);
+    dev.log("DB Connected!");
   });
 
   return mariaConnection;
@@ -38,14 +39,17 @@ const slaveConnectionHandler = () => {
     slaveConnection.on("error", (errorEvent) => {
       if (errorEvent.code === "PROTOCOL_CONNECTION_LOST") {
         slaveConnection.destroy();
-        console.log("Slave DB CONNECTION RESTART!!");
+        dev.log("Slave DB CONNECTION RESTART!!");
         connectionHandler();
       } else {
         throw errorEvent;
       }
     });
+  });
 
-    console.log("Slave DB Connected!");
+  slaveConnection.on("connect", (connection) => {
+    dev.log("slave handshake id →", connection.connectionId);
+    dev.log("Slave DB Connected!");
   });
 
   return slaveConnection;
@@ -56,6 +60,11 @@ function keepAlive() {
   if (mariaConnection) {
     mariaConnection.ping((err) => {
       if (err) {
+        dev.log("master ping!");
+        if (err.fatal) {
+          dev.alias("[ERROR] ::");
+          dev.log("MASTER DB 연결에 문제가 발생했습니다.");
+        }
         connectionHandler();
       }
     });
@@ -63,6 +72,11 @@ function keepAlive() {
   if (slaveConnection) {
     slaveConnection.ping((err) => {
       if (err) {
+        dev.log("slave ping!");
+        if (err.fatal) {
+          dev.alias("[ERROR] ::");
+          dev.log("SLAVE DB 연결에 문제가 발생했습니다.");
+        }
         slaveConnectionHandler();
       }
     });

@@ -80,7 +80,7 @@ class Socket {
       if (json["type"]) {
         if (json.type === "viewer") {
           // console.log("viewers", json);
-          users.push(json);
+          // users.push(json);
         } else if (json.type === "player") {
           // console.log(json.id)
           Object.assign(user, json);
@@ -91,6 +91,7 @@ class Socket {
         //   console.log("플레이어 전환 또는 아웃 할 때:", json.length);
         // }
         // interval++;
+        console.log('list', json.length)
         users = json;
       }
     }

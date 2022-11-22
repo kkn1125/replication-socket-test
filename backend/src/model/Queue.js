@@ -16,4 +16,18 @@ class Queue {
   }
 }
 
+class DataQueue {
+  #store = [];
+  enter(data) {
+    this.#store.push(data);
+  }
+  get() {
+    return this.#store.shift();
+  }
+  size() {
+    return this.#store.length;
+  }
+}
+
 module.exports = Queue;
+module.exports.DataQueue = DataQueue;

@@ -23,15 +23,22 @@ const host = process.env.HOST || "localhost";
 const port = Number(process.env.SERVER_PORT) || 3000;
 const { Message, Field } = protobuf;
 const sockets = new Map();
+const locationData = new Map();
 const servers = new Map();
 const Queue = require("./src/model/Queue");
-const { latency } = require("./src/utils/tool");
+const maria = require("mysql2");
+const { masterConfig } = require("./src/database/mariadbConf");
+const { dev } = require("./src/utils/tool");
+// const { latency } = require("./src/utils/tool");
+// const { sql } = require("./src/database/mariadb");
+// const mariadb = require("./src/database/mariadb");
 const locationQueue = new Queue();
+const logoutQueue = new Queue.DataQueue();
 let current = 0;
 
-const networkInterfaces = os.networkInterfaces();
+// const networkInterfaces = os.networkInterfaces();
 
-console.log("os", networkInterfaces);
+// console.log("os", networkInterfaces);
 
 Field.d(1, "fixed32", "required")(Message.prototype, "id");
 Field.d(2, "float", "required")(Message.prototype, "pox");
@@ -62,6 +69,22 @@ Field.d(4, "float", "required")(Message.prototype, "roy");
 // Field.d(23, "bool", "optional")(Message.prototype, "personal");
 // Field.d(24, "string", "optional")(Message.prototype, "cert_email");
 // Field.d(25, "string", "optional")(Message.prototype, "cert_pass");
+
+userService.addMiddleware(() => {
+  maria.createConnection(masterConfig).ping((err) => {
+    if (err) {
+      dev.log("ping!!!");
+      try {
+        throw new Error("no connection!");
+      } catch (e) {
+        dev.alias("[ERROR] ::");
+        dev.log(e.message);
+      }
+    }
+  });
+});
+
+userService.middleware();
 
 const app = uWs
   .App({})
@@ -110,8 +133,12 @@ const app = uWs
         // console.log("user server", ws.server);
 
         // insert userData
-        userService.insert(user, sockets, servers, ws);
-        userService.findAll(ws, app);
+        userService.insert(user, sockets, servers, ws, app);
+        // userService.findAll(ws, app);
+
+        dev.alias("[OPEN USER INFO] ::");
+        dev.log(user.id);
+        locationData.set(ws, user);
         // process.send(String(ws.server));
       } catch (e) {}
       // console.log("입장", sockets);
@@ -126,7 +153,8 @@ const app = uWs
           // TODO: 분기문 수정 필요
           if (data.hasOwnProperty("pox")) {
             // TODO: update
-            locationService.update(sockets.get(ws), data, ws);
+            locationData.set(ws, Object.assign(locationData.get(ws), data));
+            // locationService.update(sockets.get(ws), data, ws);
             // app.publish(
             //   String(ws.server),
             //   Message.encode(new Message(data)).finish(),
@@ -134,9 +162,9 @@ const app = uWs
             //   true
             // );
             locationQueue.enter(Message.encode(new Message(data)).finish());
-            process.send(
-              JSON.stringify(Object.assign(data, { server: ws.server }))
-            );
+            // process.send(
+            //   JSON.stringify(Object.assign(data, { server: ws.server }))
+            // );
           }
         } else {
           const data = new TextDecoder().decode(message);
@@ -147,6 +175,7 @@ const app = uWs
               // console.log(sockets.get(ws));
               if (sockets.get(ws) !== undefined || sockets.get(ws) !== null) {
                 userService.update(sockets.get(ws), json, ws, app);
+                locationData.set(ws, Object.assign(locationData.get(ws), json));
                 // process.send(String(ws.server));
               }
             }
@@ -159,14 +188,23 @@ const app = uWs
       console.log("WebSocket backpressure: " + ws.getBufferedAmount());
     },
     close: (ws, code, message) => {
+      dev.log(sockets.get(ws));
+      dev.log(locationData.get(ws));
+      locationService.update(sockets.get(ws), locationData.get(ws), ws);
+      dev.log("연결이 끊어짐!");
       try {
         const id = sockets.get(ws);
+        if (id === undefined) {
+          throw new Error("id is undefined");
+        }
         console.log(id, "out");
         // process.send(String(ws.server));
         userService.deleteOrOfflineById(id, ws, app);
-        sockets.delete(ws);
+        // logoutQueue.enter([id, ws, app]);
       } catch (e) {
         /* console.log(" 여긴가?", e); */
+      } finally {
+        sockets.delete(ws);
       }
     },
   })
@@ -193,27 +231,37 @@ setInterval(() => {
   }
 }, 16);
 
-pm2.launchBus(function (err, pm2_bus) {
-  pm2_bus.on("process:msg", function (packet) {
-    // console.log(packet.raw);
-    if (packet.raw.match(/[^0-9]/g)) {
-      const data = JSON.parse(packet.raw);
-      const server = data.server;
-      delete data["server"];
-      // locationQueue.enter(Message.encode(new Message(data)).finish());
-      userService.broadcast(server, app);
-      // app.publish(
-      //   String(server),
-      //   Message.encode(new Message(data)).finish(),
-      //   true,
-      //   true
-      // );
-    } else {
-      const server = Number(packet.raw);
-      userService.broadcast(server, app);
-    }
-  });
-});
+// setInterval(() => {
+//   if (logoutQueue.size() > 0) {
+//     // latency.start("publish");
+//     const [id, ws, app] = logoutQueue.get();
+//     userService.deleteOrOfflineById(id, ws, app);
+//     // app.publish(String(ws.server), logoutQueue.get(), true, true);
+//     // latency.end("publish");
+//   }
+// }, 16);
+
+// pm2.launchBus(function (err, pm2_bus) {
+//   pm2_bus.on("process:msg", function (packet) {
+//     // console.log(packet.raw);
+//     if (packet.raw.match(/[^0-9]/g)) {
+//       const data = JSON.parse(packet.raw);
+//       const server = data.server;
+//       delete data["server"];
+//       // locationQueue.enter(Message.encode(new Message(data)).finish());
+//       userService.broadcast(server, app);
+//       // app.publish(
+//       //   String(server),
+//       //   Message.encode(new Message(data)).finish(),
+//       //   true,
+//       //   true
+//       // );
+//     } else {
+//       const server = Number(packet.raw);
+//       userService.broadcast(server, app);
+//     }
+//   });
+// });
 
 process.on("SIGINT", function () {
   console.log("shut down");

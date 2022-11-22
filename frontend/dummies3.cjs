@@ -19,7 +19,7 @@ function viewer() {
   for (let i = START; i < MAX; i++) {
     let ws = new WebSocket(
       // `ws://localhost:30${((i - 1) % 12).toString().padStart(2, 0)}/?server=1`
-      `ws://localhost:3000/?server=1`
+      `ws://localhost:3000/?server=3`
     );
     ws.binaryType = "arraybuffer";
     ws.onopen = (e) => {
@@ -117,8 +117,8 @@ function connections() {
     player();
     setTimeout(() => {
       locations();
-    }, 5000);
-  }, 5000);
+    }, 10000);
+  }, 10000);
 }
 
 function socketPing() {

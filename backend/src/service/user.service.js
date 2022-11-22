@@ -3,7 +3,7 @@ const { sql, slave } = require("../database/mariadb");
 const { masterConfig } = require("../database/mariadbConf");
 const { slaveConfig } = require("../database/slaveConf");
 const { User } = require("../entity/User");
-const { latency } = require("../utils/tool");
+const { latency, dev } = require("../utils/tool");
 
 class QueryQueue {
   #queue = [];
@@ -25,6 +25,26 @@ class QueryQueue {
 }
 
 const queryQueue = new QueryQueue();
+
+User.middlewares = [];
+
+User.addMiddleware = function (...middlewares) {
+  this.middlewares.push(...middlewares);
+};
+
+User.middleware = function () {
+  if (this.middlewares.length > 0) {
+    for (let cb of this.middlewares) {
+      try {
+        cb.call(this);
+      } catch (e) {
+        console.log("try catch", e);
+        return false;
+      }
+    }
+  }
+  return this;
+};
 
 User.broadcast = (server, app) => {
   sql
@@ -59,7 +79,6 @@ User.broadcast = (server, app) => {
 
 User.findAll = (ws, app) => {
   // latency.start("findall");
-
   sql
     .promise()
     .query(
@@ -82,7 +101,7 @@ User.findAll = (ws, app) => {
       [ws.server]
     )
     .then(([rows, fields]) => {
-      // console.log("findall", rows.length);
+      dev.log("[FINDALL] ::", rows.length);
       ws.send(JSON.stringify(rows));
       app.publish(String(ws.server), JSON.stringify(rows));
       // latency.end("findall");
@@ -97,7 +116,7 @@ User.findByType = (type) => {
   slave.query("SELECT * FROM user WHERE type=?", type);
 };
 
-User.insert = (data, sockets, servers, ws) => {
+User.insert = (data, sockets, servers, ws, app) => {
   const user = new User(data);
   const base = user.getBaseInfo();
   const location = user.getLocation();
@@ -115,7 +134,7 @@ User.insert = (data, sockets, servers, ws) => {
         ws.subscribe(String(rows.insertId));
         ws.subscribe(String(ws.server));
       } catch (e) {
-        console.log("lose socket to insert");
+        dev.log("lose socket to insert");
       }
 
       sockets.set(ws, rows.insertId);
@@ -128,10 +147,45 @@ User.insert = (data, sockets, servers, ws) => {
       await sql.promise().query("INSERT INTO locations SET ?", [location]);
       await sql.promise().query("INSERT INTO agreements SET ?", [agrees]);
       await sql.promise().query("INSERT INTO certifications SET ?", [cert]);
+
+      sql
+        .promise()
+        .query(
+          `
+          SELECT user.*,
+          locations.*,
+          certifications.email 'cert_email',
+          certifications.password 'cert_pass',
+          agreements.*
+          FROM user
+          LEFT OUTER JOIN locations
+          ON user.id = locations.user_id
+          LEFT OUTER JOIN certifications
+          ON user.id = certifications.user_id
+          LEFT OUTER JOIN agreements
+          ON user.id = agreements.user_id
+          WHERE locations.type = 'player'
+          AND locations.server = ?
+          `,
+          [ws.server]
+        )
+        .then(([rows, fields]) => {
+          dev.log("[FINDALL] ::", rows.length);
+          // ws.send(JSON.stringify(rows));
+          // ws.publish(JSON.stringify(rows));
+          app.publish(String(ws.server), JSON.stringify(rows));
+          // latency.end("findall");
+        })
+        .catch((e) => {
+          console.log(e);
+          console.log("error skip");
+        });
     })
     .catch((e) => {
-      console.log(e);
-      console.log("skip error");
+      dev.alias("[ERROR] ::");
+      dev.log(e);
+      dev.alias("[ERROR] ::");
+      dev.log("skip error");
     });
 };
 
@@ -233,70 +287,52 @@ User.update = async (id, data, ws, app) => {
   // masterCon.release();
 };
 
-User.deleteOrOfflineById = (id, ws, app) => {
-  sql
-    .promise()
-    .query(
-      `
+User.deleteOrOfflineById = async (id, ws, app) => {
+  const [found, fields] = await sql.promise().query(
+    `
       SELECT *
       FROM user
       WHERE id=?
       AND (nickname LIKE 'guest%' OR nickname = '')
       `,
-      [id]
-    )
-    .then(([found, fields]) => {
-      // console.log(found);
-      const query =
-        found.length === 0
-          ? `
-            UPDATE locations
-            SET type='offline'
-            WHERE user_id=?
-            `
-          : "DELETE FROM user WHERE id=?";
-      console.log("id", id);
-      sql
-        .promise()
-        .query(query, id)
-        .then(() => {
-          sql
-            .promise()
-            .query(
-              `
-              SELECT user.*,
-              locations.*,
-              certifications.email 'cert_email',
-              certifications.password 'cert_pass',
-              agreements.*
-              FROM user
-              LEFT OUTER JOIN locations
-              ON user.id = locations.user_id
-              LEFT OUTER JOIN certifications
-              ON user.id = certifications.user_id
-              LEFT OUTER JOIN agreements
-              ON user.id = agreements.user_id
-              WHERE locations.type = 'player'
-              AND locations.server=?
-              `,
-              [ws.server]
-            )
-            .then(([rows]) => {
-              // console.log("after delete", rows);
-              app.publish(String(id), JSON.stringify(rows));
-              app.publish(String(ws.server), JSON.stringify(rows));
-            })
-            .catch((e) => {
-              console.log("second select error", e);
-            });
-        })
-        .catch((e) => {
-          console.log("wrap error", e);
-        });
-    })
-    .catch((e) => {
-      console.log("select error", e);
-    });
+    [id]
+  );
+  dev.alias("[DELETE FOUND PLAYERS] ::");
+  dev.log(found);
+  const query =
+    found.length === 0
+      ? `
+        UPDATE locations
+        SET type='offline'
+        WHERE user_id=?
+        `
+      : "DELETE FROM user WHERE id=?";
+  dev.log("id is", id);
+  dev.alias("[CHECK] ::");
+  dev.log(query, id);
+  await sql.promise().query(query, id);
+  const [rows] = await sql.promise().query(
+    `
+    SELECT user.*,
+    locations.*,
+    certifications.email 'cert_email',
+    certifications.password 'cert_pass',
+    agreements.*
+    FROM user
+    LEFT OUTER JOIN locations
+    ON user.id = locations.user_id
+    LEFT OUTER JOIN certifications
+    ON user.id = certifications.user_id
+    LEFT OUTER JOIN agreements
+    ON user.id = agreements.user_id
+    WHERE locations.type = 'player'
+    AND locations.server=?
+    `,
+    [ws.server]
+  );
+  dev.alias("[DELETE ROWS] ::");
+  dev.log(rows);
+  app.publish(String(ws.server), JSON.stringify(rows));
 };
 
 User.initialize = () => {
