@@ -7,7 +7,7 @@ Locations.update = (id, data, ws) => {
   const user = new User(data);
   const location = user.getLocation();
   Object.assign(location, { server: ws.server });
-  slave
+  sql
     .promise()
     .query("UPDATE locations SET ? WHERE user_id=?", [location, id])
     .then(() => {

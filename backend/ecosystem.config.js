@@ -5,7 +5,7 @@ module.exports = {
       watch: ".",
       instances: "max",
       exec_mode: "cluster",
-      // increment_var: "SERVER_PORT",
+      increment_var: "SERVER_PORT",
       env: {
         SERVER_PORT: 3000,
       },

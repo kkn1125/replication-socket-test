@@ -556,12 +556,12 @@ function moving(frame) {
     if (joystick.a || joystick.arrowleft) {
     } else if (joystick.d || joystick.arrowright) {
     }
-    console.log("current user position:", {
-      id: user.id,
-      pox: user.pox,
-      poy: user.poy,
-      roy: user.roy,
-    });
+    // console.log("current user position:", {
+    //   id: user.id,
+    //   pox: user.pox,
+    //   poy: user.poy,
+    //   roy: user.roy,
+    // });
     socket.send(
       Message.encode(
         new Message({

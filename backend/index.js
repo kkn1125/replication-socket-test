@@ -139,7 +139,7 @@ const app = uWs
         dev.alias("[OPEN USER INFO] ::");
         dev.log(user.id);
         locationData.set(ws, user);
-        // process.send(String(ws.server));
+        process.send(String(ws.server));
       } catch (e) {}
       // console.log("입장", sockets);
     },
@@ -149,11 +149,14 @@ const app = uWs
           const data = Message.decode(new Uint8Array(message));
           data.id = sockets.get(ws);
           current = data.id;
+          dev.alias("[IS REPLACED ID] ::");
+          dev.log(data.id);
           // console.log(data)
           // TODO: 분기문 수정 필요
           if (data.hasOwnProperty("pox")) {
             // TODO: update
             locationData.set(ws, Object.assign(locationData.get(ws), data));
+            dev.log("[LOCATION MOVING] ::", locationData.get(ws));
             // locationService.update(sockets.get(ws), data, ws);
             // app.publish(
             //   String(ws.server),
@@ -174,7 +177,14 @@ const app = uWs
             } else if (json.type === "player") {
               // console.log(sockets.get(ws));
               if (sockets.get(ws) !== undefined || sockets.get(ws) !== null) {
-                userService.update(sockets.get(ws), json, ws, app);
+                userService.update(
+                  sockets.get(ws),
+                  json,
+                  ws,
+                  app,
+                  sockets,
+                  servers
+                );
                 locationData.set(ws, Object.assign(locationData.get(ws), json));
                 // process.send(String(ws.server));
               }
@@ -188,7 +198,9 @@ const app = uWs
       console.log("WebSocket backpressure: " + ws.getBufferedAmount());
     },
     close: (ws, code, message) => {
+      dev.alias("[SOCKET CLOSE ID] ::");
       dev.log(sockets.get(ws));
+      dev.alias("[SOCKET CLOSE LOCATION DATA] ::");
       dev.log(locationData.get(ws));
       locationService.update(sockets.get(ws), locationData.get(ws), ws);
       dev.log("연결이 끊어짐!");
@@ -241,27 +253,27 @@ setInterval(() => {
 //   }
 // }, 16);
 
-// pm2.launchBus(function (err, pm2_bus) {
-//   pm2_bus.on("process:msg", function (packet) {
-//     // console.log(packet.raw);
-//     if (packet.raw.match(/[^0-9]/g)) {
-//       const data = JSON.parse(packet.raw);
-//       const server = data.server;
-//       delete data["server"];
-//       // locationQueue.enter(Message.encode(new Message(data)).finish());
-//       userService.broadcast(server, app);
-//       // app.publish(
-//       //   String(server),
-//       //   Message.encode(new Message(data)).finish(),
-//       //   true,
-//       //   true
-//       // );
-//     } else {
-//       const server = Number(packet.raw);
-//       userService.broadcast(server, app);
-//     }
-//   });
-// });
+pm2.launchBus(function (err, pm2_bus) {
+  pm2_bus.on("process:msg", function (packet) {
+    // console.log(packet.raw);
+    if (packet.raw.match(/[^0-9]/g)) {
+      const data = JSON.parse(packet.raw);
+      const server = data.server;
+      delete data["server"];
+      // locationQueue.enter(Message.encode(new Message(data)).finish());
+      userService.broadcast(server, app);
+      // app.publish(
+      //   String(server),
+      //   Message.encode(new Message(data)).finish(),
+      //   true,
+      //   true
+      // );
+    } else {
+      const server = Number(packet.raw);
+      userService.broadcast(server, app);
+    }
+  });
+});
 
 process.on("SIGINT", function () {
   console.log("shut down");

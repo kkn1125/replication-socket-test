@@ -124,6 +124,8 @@ User.insert = (data, sockets, servers, ws, app) => {
   const agrees = user.getAgreements();
 
   delete base["id"];
+  dev.alias("[INSERT USER INFO] ::");
+  dev.log(user.getAll());
 
   sql
     .promise()
@@ -138,11 +140,11 @@ User.insert = (data, sockets, servers, ws, app) => {
       }
 
       sockets.set(ws, rows.insertId);
+      servers.set(String(rows.insertId), ws);
 
       location.user_id = rows.insertId;
       cert.user_id = rows.insertId;
       agrees.user_id = rows.insertId;
-      servers.set(String(rows.insertId), ws);
       // console.log(location);
       await sql.promise().query("INSERT INTO locations SET ?", [location]);
       await sql.promise().query("INSERT INTO agreements SET ?", [agrees]);
@@ -171,9 +173,9 @@ User.insert = (data, sockets, servers, ws, app) => {
         )
         .then(([rows, fields]) => {
           dev.log("[FINDALL] ::", rows.length);
-          // ws.send(JSON.stringify(rows));
+          ws.send(JSON.stringify(rows));
           // ws.publish(JSON.stringify(rows));
-          app.publish(String(ws.server), JSON.stringify(rows));
+          // app.publish(String(ws.server), JSON.stringify(rows));
           // latency.end("findall");
         })
         .catch((e) => {
@@ -189,40 +191,75 @@ User.insert = (data, sockets, servers, ws, app) => {
     });
 };
 
-User.update = async (id, data, ws, app) => {
+User.update = async (id, data, ws, app, sockets, servers) => {
   if (id === undefined || id === null) return;
+  let existsId = null;
   const user = new User(data);
 
   const base = user.getBaseInfo();
   delete base["id"];
-  if (base.nickname === "guest") base.nickname += id;
+  if (base.nickname === "guest") {
+    base.nickname += id;
+  } else {
+    const [foundId, fields] = await sql
+      .promise()
+      .query(`SELECT id FROM user WHERE nickname=?`, [base.nickname]);
+    existsId = foundId?.[0]?.id;
+    if (existsId) {
+      sockets.set(ws, existsId);
+      servers.set(String(existsId), ws);
+      const [result] = await sql
+        .promise()
+        .query("DELETE FROM user WHERE id=?", [id]);
+      console.log(result);
+    }
+  }
 
   const location = user.getLocation();
   const cert = user.getCertifications();
   const agrees = user.getAgreements();
   Object.assign(location, { server: ws.server });
 
-  const masterPool = maria.createPool(masterConfig).promise();
-  const masterCon = await masterPool.getConnection();
-  masterCon.beginTransaction();
+  // const masterPool = maria.createPool(masterConfig).promise();
+  // const masterCon = await masterPool.getConnection();
+  // masterCon.beginTransaction();
 
   if (Object.keys(base).length !== 0) {
-    await sql.promise().query("UPDATE user SET ? WHERE id=?", [base, id]);
-  }
-  if (Object.keys(location).length !== 0) {
     await sql
       .promise()
-      .query("UPDATE locations SET ? WHERE user_id=?", [location, id]);
+      .query("UPDATE user SET ? WHERE id=?", [base, existsId || id]);
+  }
+
+  if (Object.keys(location).length !== 0) {
+    if (existsId !== null) {
+      delete location["pox"];
+      delete location["poy"];
+      delete location["poz"];
+      delete location["roy"];
+      await sql
+        .promise()
+        .query("UPDATE locations SET ? WHERE user_id=?", [location, existsId]);
+    } else {
+      await sql
+        .promise()
+        .query("UPDATE locations SET ? WHERE user_id=?", [location, id]);
+    }
   }
   if (Object.keys(agrees).length !== 0) {
     await sql
       .promise()
-      .query("UPDATE agreements SET ? WHERE user_id=?", [agrees, id]);
+      .query("UPDATE agreements SET ? WHERE user_id=?", [
+        agrees,
+        existsId || id,
+      ]);
   }
   if (Object.keys(cert).length !== 0) {
     await sql
       .promise()
-      .query("UPDATE certifications SET ? WHERE user_id=?", [cert, id]);
+      .query("UPDATE certifications SET ? WHERE user_id=?", [
+        cert,
+        existsId || id,
+      ]);
   }
   // masterCon.commit();
   // masterCon.release();
@@ -247,7 +284,7 @@ User.update = async (id, data, ws, app) => {
       WHERE user.id = ?
       AND locations.server = ?
     `,
-      [id, ws.server]
+      [existsId || id, ws.server]
     )
     .then(([rows1, fields1]) => {
       ws.send(JSON.stringify(rows1[0]));

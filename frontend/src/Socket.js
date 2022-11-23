@@ -91,7 +91,6 @@ class Socket {
         //   console.log("플레이어 전환 또는 아웃 할 때:", json.length);
         // }
         // interval++;
-        console.log('list', json.length)
         users = json;
       }
     }

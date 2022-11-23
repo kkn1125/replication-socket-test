@@ -156,6 +156,27 @@ class Base extends Location {
     );
   }
 
+  getAll() {
+    const base = {
+      id: this.id,
+      nickname: this.nickname,
+      email: this.email,
+      password: this.password,
+      age: this.age,
+      birth: this.birth,
+      nation: this.nation,
+      created_at: this.created_at,
+      updated_at: this.updated_at,
+      ...this.getLocation(),
+      ...this.getAgreements(),
+      ...this.getCertifications(),
+    };
+    const filteredEntries = Object.entries(base).filter(([k, v]) => v);
+    return Object.fromEntries(
+      filteredEntries.length === 0 ? [] : filteredEntries
+    );
+  }
+
   toJson() {
     return Object.fromEntries(Object.entries(this));
   }
