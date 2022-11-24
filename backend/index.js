@@ -70,21 +70,21 @@ Field.d(4, "float", "required")(Message.prototype, "roy");
 // Field.d(24, "string", "optional")(Message.prototype, "cert_email");
 // Field.d(25, "string", "optional")(Message.prototype, "cert_pass");
 
-userService.addMiddleware(() => {
-  maria.createConnection(masterConfig).ping((err) => {
-    if (err) {
-      dev.log("ping!!!");
-      try {
-        throw new Error("no connection!");
-      } catch (e) {
-        dev.alias("[ERROR] ::");
-        dev.log(e.message);
-      }
-    }
-  });
-});
+// userService.addMiddleware(() => {
+//   maria.createConnection(masterConfig).ping((err) => {
+//     if (err) {
+//       dev.log("ping!!!");
+//       try {
+//         throw new Error("no connection!");
+//       } catch (e) {
+//         dev.alias("[ERROR] ::");
+//         dev.log(e.message);
+//       }
+//     }
+//   });
+// });
 
-userService.middleware();
+// userService.middleware();
 
 const app = uWs
   .App({})
@@ -133,7 +133,11 @@ const app = uWs
         // console.log("user server", ws.server);
 
         // insert userData
-        userService.insert(user, sockets, servers, ws, app);
+        userService
+          .middleware(function test() {
+            dev.log("유저 추가 메서드");
+          })
+          .insert(user, sockets, servers, ws, app);
         // userService.findAll(ws, app);
 
         dev.alias("[OPEN USER INFO] ::");
@@ -157,7 +161,7 @@ const app = uWs
             // TODO: update
             locationData.set(ws, Object.assign(locationData.get(ws), data));
             dev.log("[LOCATION MOVING] ::", locationData.get(ws));
-            // locationService.update(sockets.get(ws), data, ws);
+            locationService.update(sockets.get(ws), data, ws);
             // app.publish(
             //   String(ws.server),
             //   Message.encode(new Message(data)).finish(),
@@ -177,14 +181,11 @@ const app = uWs
             } else if (json.type === "player") {
               // console.log(sockets.get(ws));
               if (sockets.get(ws) !== undefined || sockets.get(ws) !== null) {
-                userService.update(
-                  sockets.get(ws),
-                  json,
-                  ws,
-                  app,
-                  sockets,
-                  servers
-                );
+                userService
+                  .middleware(function player() {
+                    dev.log("플레이어 추가");
+                  })
+                  .update(sockets.get(ws), json, ws, app, sockets, servers);
                 locationData.set(ws, Object.assign(locationData.get(ws), json));
                 // process.send(String(ws.server));
               }
@@ -211,7 +212,11 @@ const app = uWs
         }
         console.log(id, "out");
         // process.send(String(ws.server));
-        userService.deleteOrOfflineById(id, ws, app);
+        userService
+          .middleware(function test() {
+            dev.log("삭제 메서드");
+          })
+          .deleteOrOfflineById(id, ws, app);
         // logoutQueue.enter([id, ws, app]);
       } catch (e) {
         /* console.log(" 여긴가?", e); */
@@ -225,7 +230,11 @@ const app = uWs
   })
   .listen(port, (token) => {
     if (token) {
-      userService.initialize();
+      userService
+        .middleware(function initial() {
+          dev.log("서버 오픈");
+        })
+        .initialize();
       console.log("Listening to port " + port);
     } else {
       console.log("Failed to listen to port " + port);

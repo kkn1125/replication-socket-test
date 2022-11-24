@@ -32,16 +32,25 @@ User.addMiddleware = function (...middlewares) {
   this.middlewares.push(...middlewares);
 };
 
-User.middleware = function () {
+User.middleware = function (once) {
+  dev.alias("[MIDDLEWARE] ::");
+  dev.log(`미들웨어 실행 개수 ${this.middlewares.length}개`);
   if (this.middlewares.length > 0) {
     for (let cb of this.middlewares) {
       try {
+        dev.alias(`[${cb.name}] ::`);
+        dev.log("미들웨어 영역");
         cb.call(this);
       } catch (e) {
         console.log("try catch", e);
         return false;
       }
     }
+  }
+  if (once) {
+    once.call(this);
+    dev.alias(`[MIDDLEWARE ONCE] ::`);
+    dev.log(once.name);
   }
   return this;
 };
@@ -314,6 +323,10 @@ User.update = async (id, data, ws, app, sockets, servers) => {
           // console.log(rows2[0]);
           ws.send(JSON.stringify(rows2));
           app.publish(String(ws.server), JSON.stringify(rows2));
+        })
+        .catch((e) => {
+          dev.log("keys :");
+          Object.keys(e);
         });
     })
     .catch((e) => {
